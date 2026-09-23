@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/api/reports/daily?secret=$CRON_SECRET", "schedule": "0 19 * * *" }
+  ]
+}

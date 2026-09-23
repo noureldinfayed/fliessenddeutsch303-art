@@ -1,0 +1,9 @@
+{
+  "name": "Fließend Deutsch Academy",
+  "short_name": "FD Academy",
+  "start_url": "/login",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0B0B0B",
+  "icons": []
+}

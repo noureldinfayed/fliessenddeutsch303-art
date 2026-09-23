@@ -1,0 +1,50 @@
+{
+  "name": "fliessend-deutsch-academy",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "seed": "tsx scripts/seed.ts"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "3.10.0",
+    "@radix-ui/react-slot": "1.1.1",
+    "@supabase/ssr": "0.5.2",
+    "@supabase/supabase-js": "2.49.1",
+    "@types/qrcode": "^1.5.5",
+    "@types/xlsx": "0.0.36",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "date-fns": "4.1.0",
+    "lucide-react": "0.468.0",
+    "next": "15.5.25",
+    "next-pwa": "5.6.0",
+    "papaparse": "5.5.3",
+    "qrcode": "^1.5.4",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "react-email": "3.0.7",
+    "react-hook-form": "7.54.2",
+    "resend": "4.1.2",
+    "tailwind-merge": "2.6.0",
+    "tailwindcss-animate": "1.0.7",
+    "xlsx": "0.18.5",
+    "zod": "3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.5",
+    "@types/papaparse": "5.3.15",
+    "@types/react": "19.0.4",
+    "@types/react-dom": "19.0.2",
+    "autoprefixer": "10.4.20",
+    "eslint": "9.17.0",
+    "eslint-config-next": "15.5.25",
+    "postcss": "8.4.49",
+    "tailwindcss": "3.4.17",
+    "tsx": "4.19.2",
+    "typescript": "5.7.2"
+  }
+}

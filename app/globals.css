@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 4%;
+  --border: 38 24% 86%;
+  --input: 38 24% 86%;
+  --ring: 0 82% 43%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.touch-button {
+  min-height: 56px;
+}
+
+[dir="rtl"] input,
+[dir="rtl"] textarea,
+[dir="rtl"] select {
+  text-align: right;
+}
+
+[dir="rtl"] input[type="email"],
+[dir="rtl"] input[type="password"],
+[dir="rtl"] input[type="number"],
+[dir="rtl"] input[type="date"],
+[dir="rtl"] input[type="time"] {
+  direction: ltr;
+  text-align: left;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    background: white !important;
+    color: black !important;
+    direction: ltr !important;
+  }
+
+  aside,
+  header,
+  nav,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  main,
+  main > div,
+  [class*="md:pl-64"],
+  [class*="md:pr-64"] {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  .print-sheet {
+    direction: ltr !important;
+    margin: 0 auto !important;
+    max-width: 184mm !important;
+    width: 184mm !important;
+    text-align: left !important;
+  }
+
+  .print-card {
+    break-inside: avoid;
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+  }
+
+  .print-table table {
+    table-layout: fixed;
+    width: 100% !important;
+  }
+
+  .print-table th,
+  .print-table td {
+    padding: 6px 8px !important;
+    text-align: left !important;
+    word-break: break-word;
+  }
+}
