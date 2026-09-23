@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Edit2, Plus, Printer, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -226,7 +226,7 @@ export function ClassManager({ initialClasses, teachers }: { initialClasses: Cla
                 const isOpen = openClassIds.includes(row.id);
                 const students = row.students ?? [];
                 return (
-                  <>
+                  <Fragment key={row.id}>
                     <tr key={row.id} className="border-t">
                       <td className="px-4 py-3">
                         <Button type="button" size="icon" variant="ghost" onClick={() => toggleClass(row.id)} aria-label={`Open ${row.name}`}>
@@ -277,7 +277,7 @@ export function ClassManager({ initialClasses, teachers }: { initialClasses: Cla
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </tbody>
