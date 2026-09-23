@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 
 export type Column<T> = { key: keyof T | string; header: string; render?: (row: T) => React.ReactNode };
 
-export function DataTable<T extends Record<string, unknown>>({ rows, columns, empty = "No records yet." }: { rows: T[]; columns: Column<T>[]; empty?: string }) {
+export function DataTable<T extends Record<string, unknown>>({ rows, columns, empty = "No records yet.", labels = { search: "Search...", previous: "Previous", next: "Next" } }: { rows: T[]; columns: Column<T>[]; empty?: string; labels?: { search?: string; previous?: string; next?: string } }) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<string>(String(columns[0]?.key ?? ""));
   const [page, setPage] = useState(0);
@@ -24,7 +24,7 @@ export function DataTable<T extends Record<string, unknown>>({ rows, columns, em
     <div className="space-y-3">
       <div className="relative max-w-sm print:hidden">
         <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input className="pl-9" placeholder="Search..." value={query} onChange={(event) => setQuery(event.target.value)} />
+        <Input className="pl-9" placeholder={labels.search} value={query} onChange={(event) => setQuery(event.target.value)} />
       </div>
       <div className="overflow-hidden rounded-lg border bg-white">
         <table className="w-full text-sm">
@@ -55,8 +55,8 @@ export function DataTable<T extends Record<string, unknown>>({ rows, columns, em
         {!visible.length && <div className="p-8 text-center text-muted-foreground">{empty}</div>}
       </div>
       <div className="flex items-center justify-end gap-2 print:hidden">
-        <Button variant="outline" disabled={page === 0} onClick={() => setPage((value) => Math.max(0, value - 1))}>Previous</Button>
-        <Button variant="outline" disabled={(page + 1) * pageSize >= filtered.length} onClick={() => setPage((value) => value + 1)}>Next</Button>
+        <Button variant="outline" disabled={page === 0} onClick={() => setPage((value) => Math.max(0, value - 1))}>{labels.previous}</Button>
+        <Button variant="outline" disabled={(page + 1) * pageSize >= filtered.length} onClick={() => setPage((value) => value + 1)}>{labels.next}</Button>
       </div>
     </div>
   );

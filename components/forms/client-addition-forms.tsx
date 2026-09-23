@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import type { Lang } from "@/lib/i18n";
 
 type Option = { id: string; name?: string; full_name?: string };
 
@@ -148,7 +149,12 @@ export function FeedbackRecordForm({ students, teachers }: { students: Option[];
   );
 }
 
-export function EmployeeEventForm({ users, teachers }: { users: Option[]; teachers: Option[] }) {
+export function EmployeeEventForm({ users, teachers, lang = "en" }: { users: Option[]; teachers: Option[]; lang?: Lang }) {
+  const labels = lang === "ar" ? {
+    title: "الإجازات والجزاءات وتقييم الأداء", vacation: "إجازة", penalty: "جزاء", performance: "ملاحظة أداء", amount: "المبلغ عند وجود جزاء", score: "درجة الأداء", notes: "ملاحظات...", save: "حفظ سجل الموظف", saved: "تم حفظ سجل الموظف", teacher: "مدرس",
+  } : {
+    title: "Vacation / Penalty / Performance", vacation: "Vacation", penalty: "Penalty", performance: "Performance note", amount: "Amount if penalty", score: "Performance score", notes: "Notes...", save: "Save HR Event", saved: "HR event saved", teacher: "teacher",
+  };
   const [saved, setSaved] = useState("");
   async function submit(form: FormData) {
     const supabase = createSupabaseBrowserClient();
@@ -163,23 +169,23 @@ export function EmployeeEventForm({ users, teachers }: { users: Option[]; teache
       score: form.get("score") ? Number(form.get("score")) : null,
       notes: form.get("notes"),
     });
-    setSaved(error?.message ?? "HR event saved");
+    setSaved(error?.message ?? labels.saved);
   }
   return (
     <Card>
-      <CardHeader><CardTitle>Vacation / Penalty / Performance</CardTitle></CardHeader>
+      <CardHeader><CardTitle>{labels.title}</CardTitle></CardHeader>
       <CardContent>
         <form action={submit} className="grid gap-3 md:grid-cols-4">
           <Select name="target" required>
             {users.map((item) => <option key={`user:${item.id}`} value={`user:${item.id}`}>{label(item)}</option>)}
-            {teachers.map((item) => <option key={`teacher:${item.id}`} value={`teacher:${item.id}`}>{label(item)} - teacher</option>)}
+            {teachers.map((item) => <option key={`teacher:${item.id}`} value={`teacher:${item.id}`}>{label(item)} - {labels.teacher}</option>)}
           </Select>
-          <Select name="type" defaultValue="performance_note"><option value="vacation">Vacation</option><option value="penalty">Penalty</option><option value="performance_note">Performance note</option></Select>
+          <Select name="type" defaultValue="performance_note"><option value="vacation">{labels.vacation}</option><option value="penalty">{labels.penalty}</option><option value="performance_note">{labels.performance}</option></Select>
           <Input name="event_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
-          <Input name="amount" type="number" step="0.01" placeholder="Amount if penalty" />
-          <Input name="score" type="number" min="0" max="100" placeholder="Performance score" />
-          <Textarea name="notes" required className="md:col-span-3" placeholder="Notes..." />
-          <Button className="md:col-span-4"><Plus size={16} /> Save HR Event</Button>
+          <Input name="amount" type="number" step="0.01" placeholder={labels.amount} />
+          <Input name="score" type="number" min="0" max="100" placeholder={labels.score} />
+          <Textarea name="notes" required className="md:col-span-3" placeholder={labels.notes} />
+          <Button className="md:col-span-4"><Plus size={16} /> {labels.save}</Button>
           {saved && <p className="text-sm text-muted-foreground md:col-span-4">{saved}</p>}
         </form>
       </CardContent>

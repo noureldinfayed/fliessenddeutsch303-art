@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Cairo, Inter } from "next/font/google";
 import { direction } from "@/lib/i18n";
 import { getCurrentLanguage } from "@/lib/i18n-server";
+import { ArabicUiTranslator } from "@/components/layout/arabic-ui-translator";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -16,7 +17,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const lang = await getCurrentLanguage();
   return (
     <html lang={lang} dir={direction(lang)}>
-      <body className={`${inter.variable} ${cairo.variable} min-h-screen font-sans antialiased ${lang === "ar" ? "font-cairo" : ""}`}>{children}</body>
+      <body className={`${inter.variable} ${cairo.variable} min-h-screen font-sans antialiased ${lang === "ar" ? "font-cairo" : ""}`}><ArabicUiTranslator lang={lang} />{children}</body>
     </html>
   );
 }

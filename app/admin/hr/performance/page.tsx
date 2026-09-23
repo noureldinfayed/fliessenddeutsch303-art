@@ -4,11 +4,36 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/tables/data-table";
 import { getCurrentUser } from "@/lib/auth";
+import { getCurrentLanguage } from "@/lib/i18n-server";
+import type { Lang } from "@/lib/i18n";
 import { calculatePayslips } from "@/lib/payslip";
 import { formatMoney } from "@/lib/utils";
 
+function translateValue(value: string, lang: Lang) {
+  if (lang !== "ar") return value;
+  return ({
+    admin: "مدير",
+    reception: "استقبال",
+    sales: "مبيعات",
+    teacher: "مدرس",
+    hourly: "بالساعة",
+    per_session: "بالحصة",
+    monthly_salary: "راتب شهري",
+    monthly_wage: "أجر شهري",
+    vacation: "إجازة",
+    penalty: "جزاء",
+    performance_note: "ملاحظة أداء",
+  } as Record<string, string>)[value] ?? value;
+}
+
 export default async function HrPerformancePage() {
   const { supabase } = await getCurrentUser("admin");
+  const lang = await getCurrentLanguage();
+  const labels = lang === "ar" ? {
+    payslip: "طباعة كشوف المرتبات - الشهر الحالي", employee: "الموظف", role: "الوظيفة", payType: "نوع الأجر", hours: "الساعات", sessions: "الحصص", base: "الأساسي", bonuses: "المكافآت", deductions: "الخصومات", total: "الإجمالي", print: "طباعة كشف المرتب", kpis: "مؤشرات أداء الموظفين هذا الشهر", followups: "متابعات المبيعات", bookings: "حجوزات المبيعات", hrNotes: "ملاحظات الموارد البشرية", feedback: "تعليقات الطلاب على الموظفين - للإدارة فقط", student: "الطالب", worker: "الموظف", comment: "التعليق", date: "التاريخ", events: "الإجازات والجزاءات وملاحظات الأداء", type: "النوع", amount: "المبلغ", score: "الدرجة", notes: "الملاحظات", table: { search: "بحث...", previous: "السابق", next: "التالي" }, empty: "لا توجد سجلات بعد.",
+  } : {
+    payslip: "Payslip print - current month", employee: "Employee", role: "Role", payType: "Pay type", hours: "Hours", sessions: "Sessions", base: "Base", bonuses: "Bonuses", deductions: "Deductions", total: "Total", print: "Print payslip", kpis: "Employee KPIs this month", followups: "Sales follow-ups", bookings: "Sales bookings", hrNotes: "HR notes", feedback: "Student comments about staff - admin only", student: "Student", worker: "Worker", comment: "Comment", date: "Date", events: "Vacations, penalties, performance notes", type: "Type", amount: "Amount", score: "Score", notes: "Notes", table: { search: "Search...", previous: "Previous", next: "Next" }, empty: "No records yet.",
+  };
   const monthStartDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   const monthStart = monthStartDate.toISOString();
   const periodStart = monthStart.slice(0, 10);
@@ -26,7 +51,7 @@ export default async function HrPerformancePage() {
   const eventRows = (events.data ?? []).map((event) => ({
     id: event.id,
     employee: (users.data ?? []).find((user) => user.id === event.user_id)?.full_name ?? (teachers.data ?? []).find((teacher) => teacher.id === event.teacher_id)?.name ?? "",
-    type: event.type,
+    type: translateValue(event.type, lang),
     date: event.event_date,
     amount: event.amount ?? "",
     score: event.score ?? "",
@@ -35,7 +60,7 @@ export default async function HrPerformancePage() {
   const kpiRows = (users.data ?? []).map((user) => ({
     id: user.id,
     employee: user.full_name,
-    role: user.role,
+    role: translateValue(user.role, lang),
     sales_followups: (interactions.data ?? []).filter((item) => item.created_by === user.id).length,
     sales_bookings: (bookings.data ?? []).filter((item) => item.assigned_to === user.id).length,
     hr_events: (events.data ?? []).filter((item) => item.user_id === user.id).length,
@@ -43,7 +68,7 @@ export default async function HrPerformancePage() {
   const teacherKpiRows = (teachers.data ?? []).map((teacher) => ({
     id: teacher.id,
     employee: teacher.name,
-    role: "teacher",
+    role: translateValue("teacher", lang),
     sales_followups: 0,
     sales_bookings: 0,
     hr_events: (events.data ?? []).filter((item) => item.teacher_id === teacher.id).length,
@@ -54,28 +79,28 @@ export default async function HrPerformancePage() {
     worker: item.target_role === "teacher"
       ? (teachers.data ?? []).find((teacher) => teacher.id === item.target_teacher_id)?.name ?? "Teacher"
       : (users.data ?? []).find((user) => user.id === item.target_user_id)?.full_name ?? "Reception",
-    role: item.target_role,
+    role: translateValue(item.target_role, lang),
     comment: item.comment,
     date: String(item.created_at).slice(0, 10),
   }));
   return (
     <div className="space-y-6">
-      <EmployeeEventForm users={users.data ?? []} teachers={teachers.data ?? []} />
+      <EmployeeEventForm users={users.data ?? []} teachers={teachers.data ?? []} lang={lang} />
       <Card>
-        <CardHeader><CardTitle>Payslip print - current month</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{labels.payslip}</CardTitle></CardHeader>
         <CardContent className="overflow-auto">
           <table className="w-full min-w-[980px] text-sm">
             <thead className="bg-muted">
               <tr>
-                {["Employee", "Role", "Pay type", "Hours", "Sessions", "Base", "Bonuses", "Deductions", "Total", "Print"].map((header) => <th key={header} className="px-4 py-3 text-left">{header}</th>)}
+                {[labels.employee, labels.role, labels.payType, labels.hours, labels.sessions, labels.base, labels.bonuses, labels.deductions, labels.total, labels.print].map((header) => <th key={header} className="px-4 py-3 text-left">{header}</th>)}
               </tr>
             </thead>
             <tbody>
               {payslips.map((row) => (
                 <tr key={`${row.kind}-${row.id}`} className="border-t">
                   <td className="px-4 py-3">{row.name}</td>
-                  <td className="px-4 py-3">{row.role}</td>
-                  <td className="px-4 py-3">{row.payType}</td>
+                  <td className="px-4 py-3">{translateValue(row.role, lang)}</td>
+                  <td className="px-4 py-3">{translateValue(row.payType, lang)}</td>
                   <td className="px-4 py-3">{row.hours.toFixed(2)}</td>
                   <td className="px-4 py-3">{row.sessions}</td>
                   <td className="px-4 py-3">{formatMoney(row.basePay)}</td>
@@ -84,7 +109,7 @@ export default async function HrPerformancePage() {
                   <td className="px-4 py-3 font-semibold">{formatMoney(row.net)}</td>
                   <td className="px-4 py-3">
                     <Button asChild size="sm" variant="outline">
-                      <Link href={`/admin/hr/performance/payslip/${row.kind}/${row.id}?start=${periodStart}&end=${periodEnd}`}>Print payslip</Link>
+                      <Link href={`/admin/hr/performance/payslip/${row.kind}/${row.id}?start=${periodStart}&end=${periodEnd}`}>{labels.print}</Link>
                     </Button>
                   </td>
                 </tr>
@@ -93,9 +118,9 @@ export default async function HrPerformancePage() {
           </table>
         </CardContent>
       </Card>
-      <Card><CardHeader><CardTitle>Employee KPIs this month</CardTitle></CardHeader><CardContent><DataTable rows={[...kpiRows, ...teacherKpiRows]} columns={[{ key: "employee", header: "Employee" }, { key: "role", header: "Role" }, { key: "sales_followups", header: "Sales follow-ups" }, { key: "sales_bookings", header: "Sales bookings" }, { key: "hr_events", header: "HR notes" }]} /></CardContent></Card>
-      <Card><CardHeader><CardTitle>Student comments about staff - admin only</CardTitle></CardHeader><CardContent><DataTable rows={studentWorkerFeedbackRows} columns={[{ key: "student", header: "Student" }, { key: "worker", header: "Worker" }, { key: "role", header: "Role" }, { key: "comment", header: "Comment" }, { key: "date", header: "Date" }]} /></CardContent></Card>
-      <Card><CardHeader><CardTitle>Vacations, penalties, performance notes</CardTitle></CardHeader><CardContent><DataTable rows={eventRows} columns={[{ key: "employee", header: "Employee" }, { key: "type", header: "Type" }, { key: "date", header: "Date" }, { key: "amount", header: "Amount" }, { key: "score", header: "Score" }, { key: "notes", header: "Notes" }]} /></CardContent></Card>
+      <Card><CardHeader><CardTitle>{labels.kpis}</CardTitle></CardHeader><CardContent><DataTable rows={[...kpiRows, ...teacherKpiRows]} labels={labels.table} empty={labels.empty} columns={[{ key: "employee", header: labels.employee }, { key: "role", header: labels.role }, { key: "sales_followups", header: labels.followups }, { key: "sales_bookings", header: labels.bookings }, { key: "hr_events", header: labels.hrNotes }]} /></CardContent></Card>
+      <Card><CardHeader><CardTitle>{labels.feedback}</CardTitle></CardHeader><CardContent><DataTable rows={studentWorkerFeedbackRows} labels={labels.table} empty={labels.empty} columns={[{ key: "student", header: labels.student }, { key: "worker", header: labels.worker }, { key: "role", header: labels.role }, { key: "comment", header: labels.comment }, { key: "date", header: labels.date }]} /></CardContent></Card>
+      <Card><CardHeader><CardTitle>{labels.events}</CardTitle></CardHeader><CardContent><DataTable rows={eventRows} labels={labels.table} empty={labels.empty} columns={[{ key: "employee", header: labels.employee }, { key: "type", header: labels.type }, { key: "date", header: labels.date }, { key: "amount", header: labels.amount }, { key: "score", header: labels.score }, { key: "notes", header: labels.notes }]} /></CardContent></Card>
     </div>
   );
 }
