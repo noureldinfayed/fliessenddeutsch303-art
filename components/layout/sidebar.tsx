@@ -66,18 +66,29 @@ export function AppShell({ profile, children, lang }: { profile: UserProfile; ch
           </Button>
         </form>
       </aside>
-      <main className={isRtl ? "md:pr-64" : "md:pl-64"}>
-        <header className="sticky top-0 z-10 flex min-h-16 items-center justify-between border-b bg-white/95 px-4 backdrop-blur md:px-8">
-          <div>
-            <p className="text-sm text-muted-foreground">{t.roles[profile.role]}</p>
-            <h1 className="font-semibold">{profile.full_name}</h1>
+      <main className={`min-w-0 ${isRtl ? "md:pr-64" : "md:pl-64"}`}>
+        <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-3 border-b bg-white/95 px-3 backdrop-blur sm:px-4 md:px-8">
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground sm:text-sm">{t.roles[profile.role]}</p>
+            <h1 className="truncate font-semibold">{profile.full_name}</h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <LanguageToggle lang={lang} />
-            <div className="text-sm font-medium text-primary">{t.academySystem}</div>
+            <div className="hidden text-sm font-medium text-primary sm:block">{t.academySystem}</div>
           </div>
         </header>
-        <div className="p-4 md:p-8">{children}</div>
+        <div className="border-b bg-white px-3 py-2 md:hidden">
+          <details>
+            <summary className="cursor-pointer list-none rounded-md border px-3 py-2 text-sm font-semibold text-primary">{lang === "ar" ? "القائمة" : "Menu"}</summary>
+            <nav className="mt-2 grid grid-cols-2 gap-1" aria-label={t.academySystem}>
+              {visibleNav.map((item) => <Link key={item.href} className="rounded-md px-3 py-2 text-sm hover:bg-muted" href={item.href}>{t.nav[item.labelKey]}</Link>)}
+            </nav>
+            <form action="/api/auth/signout" className="mt-2">
+              <Button className="w-full" variant="outline"><LogOut size={16} /> {t.signOut}</Button>
+            </form>
+          </details>
+        </div>
+        <div className="min-w-0 p-3 sm:p-4 md:p-8">{children}</div>
       </main>
     </div>
   );

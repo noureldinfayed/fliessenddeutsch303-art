@@ -85,7 +85,7 @@ function StudentHoverCard({ student, position, lang }: { student: StudentFollowU
   const latestAttendance = last(student.attendance);
   const latestWorkerComment = last(student.worker_comments ?? []);
   return (
-    <div className="pointer-events-none fixed z-[100] max-h-[82vh] w-[520px] overflow-auto rounded-lg border bg-white p-5 text-left text-sm shadow-xl" style={{ left: position.left, top: position.top }}>
+    <div className="pointer-events-none fixed z-[100] max-h-[82vh] w-[min(520px,calc(100vw-24px))] overflow-auto rounded-lg border bg-white p-5 text-left text-sm shadow-xl" style={{ left: position.left, top: position.top }}>
       <div className="mb-3 flex items-start justify-between gap-3 border-b pb-3">
         <div>
           <h3 className="text-lg font-semibold text-primary">{student.full_name}</h3>
@@ -263,7 +263,7 @@ export function StudentFollowUpManager({
 
   function showStudentOverlay(student: StudentFollowUp, event: MouseEvent<HTMLElement> | FocusEvent<HTMLElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
-    const width = 520;
+    const width = Math.min(520, window.innerWidth - 24);
     const estimatedHeight = 420;
     const preferredLeft = rect.left - width - 12;
     const left = preferredLeft >= 12 ? preferredLeft : Math.min(rect.right + 12, Math.max(12, window.innerWidth - width - 12));

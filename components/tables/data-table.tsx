@@ -26,8 +26,8 @@ export function DataTable<T extends Record<string, unknown>>({ rows, columns, em
         <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input className="pl-9" placeholder={labels.search} value={query} onChange={(event) => setQuery(event.target.value)} />
       </div>
-      <div className="overflow-hidden rounded-lg border bg-white">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-lg border bg-white">
+        <table className="w-full min-w-max text-sm">
           <thead className="bg-muted">
             <tr>
               {columns.map((column) => (
@@ -54,7 +54,7 @@ export function DataTable<T extends Record<string, unknown>>({ rows, columns, em
         </table>
         {!visible.length && <div className="p-8 text-center text-muted-foreground">{empty}</div>}
       </div>
-      <div className="flex items-center justify-end gap-2 print:hidden">
+      <div className="flex flex-wrap items-center justify-end gap-2 print:hidden">
         <Button variant="outline" disabled={page === 0} onClick={() => setPage((value) => Math.max(0, value - 1))}>{labels.previous}</Button>
         <Button variant="outline" disabled={(page + 1) * pageSize >= filtered.length} onClick={() => setPage((value) => value + 1)}>{labels.next}</Button>
       </div>
