@@ -39,6 +39,10 @@ export function StudentExcelTools({ rows, classes }: { rows: StudentRow[]; class
         Balance: Math.max(0, Number(row.total_price ?? 0) - Number(row.amount_paid ?? 0)),
         Due: row.payment_due_date as string,
         Comment: row.payment_comment as string,
+        "Freeze start": row.freeze_start_date as string,
+        "Freeze months": Number(row.freeze_months ?? 0),
+        "Freeze end": row.freeze_end_date as string,
+        "Finished level and stopped": row.level_completed_stopped ? "Yes" : "No",
       })),
       "Students",
       { widths: [18, 14, 24, 9, 24, 16, 18, 10, 10, 12, 12, 12, 13, 28] },
@@ -64,6 +68,10 @@ export function StudentExcelTools({ rows, classes }: { rows: StudentRow[]; class
         amount_paid: asNumber(pick(row, ["paid", "amount paid"])),
         payment_due_date: String(pick(row, ["payment date", "payment due date", "due date", "arranged date"]) ?? "") || null,
         payment_comment: String(pick(row, ["comment", "payment comment", "notes"]) ?? ""),
+        freeze_start_date: String(pick(row, ["freeze start", "freeze start date"]) ?? "") || null,
+        freeze_months: Math.min(3, Math.max(0, asNumber(pick(row, ["freeze months", "months frozen"])))),
+        freeze_end_date: String(pick(row, ["freeze end", "freeze end date"]) ?? "") || null,
+        level_completed_stopped: ["yes", "true", "1"].includes(String(pick(row, ["finished level and stopped", "finished and stopped"]) ?? "").toLowerCase()),
         enrolled_at: new Date().toISOString(),
       };
     }).filter((row) => row.full_name && row.phone);

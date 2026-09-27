@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Download } from "lucide-react";
+import { CheckCircle2, Download, Snowflake } from "lucide-react";
 import { StudentAttendanceCell } from "@/components/tables/student-attendance-cell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,13 @@ function teacherName(row: Record<string, unknown>) {
 
 function tagsText(row: Record<string, unknown>) {
   return Array.isArray(row.tags) ? row.tags.join(", ") : String(row.tags ?? "");
+}
+
+function freezeStatus(row: Record<string, unknown>) {
+  const start = String(row.freeze_start_date ?? "");
+  const end = String(row.freeze_end_date ?? "");
+  if (!start || !end || Number(row.freeze_months ?? 0) === 0) return "none";
+  return end < new Date().toISOString().slice(0, 10) ? "expired" : "active";
 }
 
 export function StudentsTable({ rows, onEdit }: { rows: Record<string, unknown>[]; onEdit?: (row: Record<string, unknown>) => void }) {
@@ -110,6 +117,11 @@ export function StudentsTable({ rows, onEdit }: { rows: Record<string, unknown>[
         Due: row.payment_due_date as string,
         Alert: Math.max(0, Number(row.total_price ?? 0) - Number(row.amount_paid ?? 0)) <= 0 ? "Paid" : String(row.payment_due_date ?? "") < new Date().toISOString().slice(0, 10) ? "Overdue" : String(row.payment_due_date ?? "") === new Date().toISOString().slice(0, 10) ? "Due today" : "Scheduled",
         Comment: row.payment_comment as string,
+        "Freeze start": row.freeze_start_date as string,
+        "Freeze months": Number(row.freeze_months ?? 0),
+        "Freeze end": row.freeze_end_date as string,
+        "Freeze status": freezeStatus(row),
+        "Finished level and stopped": row.level_completed_stopped ? "Yes" : "No",
         Enrolled: String(row.enrolled_at ?? "").slice(0, 10),
       })),
       "Students",
@@ -147,7 +159,7 @@ export function StudentsTable({ rows, onEdit }: { rows: Record<string, unknown>[
           <thead className="sticky top-0 z-10 bg-muted">
             <tr>
               <th className="px-4 py-3 text-left"><input type="checkbox" checked={visibleRows.length > 0 && visibleRows.every((row) => selected.has(String(row.id)))} onChange={toggleAll} /></th>
-              {["Name", "Phone", "Email", "Level", "Tags", "Class", "Teacher", "Online / Offline", "Price", "Paid", "Not Paid", "Payment Date", "Alert", "Comment", "Status", "Attendance", "Actions"].map((header) => (
+              {["Name", "Phone", "Email", "Level", "Tags", "Class", "Teacher", "Online / Offline", "Price", "Paid", "Not Paid", "Payment Date", "Alert", "Freeze started", "Freeze finished", "Freeze status", "Finished / Stopped", "Comment", "Status", "Attendance", "Actions"].map((header) => (
                 <th key={header} className="px-4 py-3 text-left font-semibold">{header}</th>
               ))}
             </tr>
@@ -171,6 +183,10 @@ export function StudentsTable({ rows, onEdit }: { rows: Record<string, unknown>[
                   <td className="px-4 py-3">{formatMoney(Math.max(0, Number(row.total_price ?? 0) - Number(row.amount_paid ?? 0)))}</td>
                   <td className="px-4 py-3">{String(row.payment_due_date ?? "")}</td>
                   <td className="px-4 py-3">{paymentStatus(row)}</td>
+                  <td className="px-4 py-3">{String(row.freeze_start_date ?? "")}</td>
+                  <td className="px-4 py-3">{String(row.freeze_end_date ?? "")}</td>
+                  <td className="px-4 py-3">{freezeStatus(row) === "active" ? <Badge className="border-blue-200 bg-blue-50 text-blue-700"><Snowflake size={15} /> Active</Badge> : freezeStatus(row) === "expired" ? <Badge className="border-red-200 bg-red-50 text-red-700">Expired</Badge> : ""}</td>
+                  <td className="px-4 py-3">{row.level_completed_stopped ? <Badge className="border-yellow-200 bg-yellow-50 text-yellow-700"><CheckCircle2 size={15} /> Finished level</Badge> : ""}</td>
                   <td className="px-4 py-3">{String(row.payment_comment ?? "")}</td>
                   <td className="px-4 py-3">{String(row.status ?? "")}</td>
                   <td className="px-4 py-3"><StudentAttendanceCell studentId={id} /></td>

@@ -2,6 +2,7 @@ import Image from "next/image";
 import { StudentWorkerCommentForm } from "@/components/forms/student-worker-comment-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
+import { refreshClassSessionProgress } from "@/lib/class-progress";
 
 export default async function StudentQrAttendancePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -43,6 +44,7 @@ export default async function StudentQrAttendancePage({ params }: { params: Prom
       recorded_by: null,
     });
   }
+  await refreshClassSessionProgress(supabase, student.class_id, today);
 
   const classInfo = student.classes as { name?: string; schedule?: string } | null;
   const classWithTeacher = student.classes as { teacher_id?: string | null } | null;

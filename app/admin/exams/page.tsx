@@ -2,6 +2,7 @@ import { ExamRecordForm } from "@/components/forms/client-addition-forms";
 import { StudentFollowUpManager } from "@/components/forms/student-follow-up-manager";
 import { getCurrentUser } from "@/lib/auth";
 import { getCurrentLanguage } from "@/lib/i18n-server";
+import { isPromotionCandidate } from "@/lib/level-progression";
 
 export default async function StudentsFollowUpPage() {
   const { supabase } = await getCurrentUser("admin");
@@ -23,13 +24,17 @@ export default async function StudentsFollowUpPage() {
   const followUpRows = (students.data ?? []).map((student) => {
     const klass = classRows.find((item) => item.id === student.class_id);
     const teacher = teacherRows.find((item) => item.id === klass?.teacher_id);
+    const studentExams = (exams.data ?? []).filter((item) => item.student_id === student.id);
+    const latestExam = studentExams[0];
     return {
       ...student,
       class_name: klass?.name ?? "",
       teacher_name: teacher?.name ?? "",
       schedule: klass?.schedule ?? "",
       account_notes: (accounts.data ?? []).filter((item) => item.student_id === student.id).map((item) => `${item.status} ${item.due_date ?? ""}: ${item.notes ?? ""}`),
-      exams: (exams.data ?? []).filter((item) => item.student_id === student.id).map((item) => ({
+      promotion_candidate: isPromotionCandidate(student.level, latestExam?.level_result, latestExam?.score_percent),
+      next_level: latestExam?.level_result ?? "",
+      exams: studentExams.map((item) => ({
         type: item.exam_type,
         date: String(item.scheduled_at).slice(0, 10),
         level: item.level_result ?? "",

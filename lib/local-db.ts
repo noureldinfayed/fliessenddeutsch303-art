@@ -15,9 +15,19 @@ const ids = {
   teacher2: "local-teacher-2",
   classA1: "local-class-a1",
   classB1: "local-class-b1",
+  classB2: "local-class-b2",
+  classA2: "local-class-a2",
   file: "local-file",
   branch: "local-branch-main",
 };
+
+const mockStudentNames = [
+  "Omar Hassan", "Mariam Adel", "Youssef Nabil", "Salma Tarek", "Karim Samir", "Laila Mostafa", "Adam Fathy", "Nour Khaled", "Hana Mahmoud", "Ibrahim Ashraf",
+  "Mina George", "Jana Hany", "Ahmed Ezzat", "Farah Wael", "Ziad Emad", "Malak Hossam", "Ali Sherif", "Reem Ayman", "Seif Magdy", "Nada Amr",
+  "Yara Sameh", "Tamer Fawzy", "Huda Osama", "Bassem Walid", "Aya Essam", "Mahmoud Reda", "Dina Hatem", "Ramy Mostafa", "Sara Fadel", "Khaled Sayed",
+  "Lina Nasser", "Hassan Ibrahim", "Joudy Karim", "Mostafa Yehia", "Mariam Fares", "Anas Galal", "Rana Hisham", "Othman Adel", "Maya Rami", "Fady Nabil",
+  "Nada Fathy", "Hany Saad", "Lamar Tarek", "Sherif Amin", "Jana Omar", "Yassin Atef", "Aya Nader", "Rania Samir", "Sami Khalil", "Farida Ashraf",
+];
 
 const db: Record<string, Row[]> = {
   users: [
@@ -34,15 +44,17 @@ const db: Record<string, Row[]> = {
     { id: ids.branch, name: "Main Branch", address: "Nasr City", phone: "01000000000", is_active: true, created_at: now },
   ],
   classes: [
-    { id: ids.classA1, name: "A1 Evening", teacher_id: ids.teacher, branch_id: ids.branch, level: "A1", learning_mode: "offline", schedule: "Sunday Tuesday 18:00", capacity: 16, created_at: now },
-    { id: ids.classB1, name: "B1 Morning", teacher_id: ids.teacher2, branch_id: ids.branch, level: "B1", learning_mode: "online", schedule: "Monday Wednesday 10:00", capacity: 14, created_at: now },
+    { id: ids.classA1, name: "A1 Evening", teacher_id: ids.teacher, branch_id: ids.branch, level: "A1", current_chapter: "Kapitel 1", learning_mode: "offline", schedule: "Sunday 18:00 | Tuesday 19:30", capacity: 16, total_sessions: 12, sessions_done: 0, class_status: "not_started", last_session_completed_date: null, created_at: now },
+    { id: ids.classB1, name: "B1 Morning", teacher_id: ids.teacher2, branch_id: ids.branch, level: "B1", current_chapter: "Kapitel 5", learning_mode: "online", schedule: "Monday 10:00 | Wednesday 11:30", capacity: 14, total_sessions: 12, sessions_done: 4, class_status: "started", last_session_completed_date: null, created_at: now },
+    { id: ids.classB2, name: "B2 Weekend", teacher_id: ids.teacher, branch_id: ids.branch, level: "B2", current_chapter: "Kapitel 10", learning_mode: "offline", schedule: "Saturday 12:00 | Thursday 18:00", capacity: 18, total_sessions: 12, sessions_done: 12, class_status: "finished", last_session_completed_date: null, created_at: now },
+    { id: ids.classA2, name: "A2 Intensive", teacher_id: ids.teacher2, branch_id: ids.branch, level: "A2", current_chapter: "Kapitel 2", learning_mode: "online", schedule: "Sunday 09:00 | Friday 15:30", capacity: 12, total_sessions: 16, sessions_done: 0, class_status: "not_started", last_session_completed_date: null, created_at: now },
   ],
-  students: Array.from({ length: 10 }, (_, index) => ({
+  students: Array.from({ length: 50 }, (_, index) => ({
     id: `local-student-${index + 1}`,
-    full_name: `Student ${index + 1}`,
+    full_name: mockStudentNames[index],
     phone: `0101000000${index}`,
     email: `student${index + 1}@local.test`,
-    level: index < 5 ? "A1" : "B1",
+    level: index < 25 ? "A1" : "B1",
     tags: index % 2 === 0 ? ["electric company"] : ["water company"],
     class_id: index % 2 === 0 ? ids.classA1 : ids.classB1,
     branch_id: ids.branch,
@@ -51,6 +63,10 @@ const db: Record<string, Row[]> = {
     amount_paid: index % 3 === 0 ? 3000 : 8500,
     payment_due_date: index % 3 === 0 ? new Date(Date.now() + (index === 0 ? -1 : 1) * 86400000).toISOString().slice(0, 10) : null,
     payment_comment: index % 3 === 0 ? "Arranged remaining payment with student." : "",
+    freeze_start_date: index === 1 ? today : index === 2 ? new Date(Date.now() - 120 * 86400000).toISOString().slice(0, 10) : null,
+    freeze_months: index === 1 ? 2 : index === 2 ? 1 : 0,
+    freeze_end_date: index === 1 ? new Date(Date.now() + 60 * 86400000).toISOString().slice(0, 10) : index === 2 ? new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10) : null,
+    level_completed_stopped: index === 3,
     status: "active",
     enrolled_at: now,
     created_at: now,
@@ -100,6 +116,40 @@ const db: Record<string, Row[]> = {
   exam_records: [
     { id: "local-exam-1", student_id: "local-student-1", exam_type: "placement", scheduled_at: now, level_result: "A2", score_percent: 78, result_comment: "Strong grammar, needs speaking confidence.", created_by: ids.admin, created_at: now },
     { id: "local-exam-2", student_id: "local-student-2", exam_type: "osd", scheduled_at: new Date(Date.now() + 7 * 86400000).toISOString(), level_result: "", score_percent: null, result_comment: "ÖSD booking pending confirmation.", created_by: ids.reception, created_at: now },
+    ...Array.from({ length: 48 }, (_, index) => {
+      const studentNumber = index + 3;
+      const currentLevel = studentNumber <= 25 ? "A1" : "B1";
+      const promoted = studentNumber % 3 !== 0;
+      const nextLevel = currentLevel === "A1" ? "A2" : "B2";
+      return {
+        id: `local-exam-${studentNumber}`,
+        student_id: `local-student-${studentNumber}`,
+        exam_type: "placement",
+        scheduled_at: new Date(Date.now() - index * 86400000).toISOString(),
+        level_result: promoted ? nextLevel : currentLevel,
+        score_percent: promoted ? 72 + (studentNumber % 20) : 55 + (studentNumber % 10),
+        result_comment: promoted ? `Ready to continue to ${nextLevel}.` : "Needs more practice before moving up.",
+        created_by: ids.admin,
+        created_at: now,
+      };
+    }),
+    ...Array.from({ length: 10 }, (_, index) => {
+      const studentNumber = index + 1;
+      const isMain = index % 2 === 0;
+      return {
+        id: `local-${isMain ? "main" : "quiz"}-${studentNumber}`,
+        student_id: `local-student-${studentNumber}`,
+        exam_type: isMain ? "main" : "quiz",
+        scheduled_at: new Date(Date.now() - (index + 1) * 3600000).toISOString(),
+        level_result: null,
+        score_percent: isMain ? (index === 4 ? 48 : 76 + index) : 68 + index,
+        result_comment: isMain ? (index === 4 ? "Needs another attempt." : "Passed main test.") : "Quiz result recorded.",
+        booking_status: isMain && index !== 4 ? "booked" : "not_booked",
+        booked_class_id: isMain && index !== 4 ? (index % 2 === 0 ? ids.classA1 : ids.classB1) : null,
+        created_by: ids.admin,
+        created_at: now,
+      };
+    }),
   ],
   feedback_records: [
     { id: "local-feedback-1", student_id: "local-student-1", teacher_id: ids.teacher, source: "teacher", rating: 4, comment: "Good attendance and homework discipline.", created_by: ids.teacherUser, created_at: now },
@@ -112,6 +162,15 @@ const db: Record<string, Row[]> = {
   employee_events: [
     { id: "local-event-1", user_id: ids.sales, teacher_id: null, type: "performance_note", event_date: today, amount: null, score: 86, notes: "Followed up with all hot leads.", created_by: ids.admin, created_at: now },
     { id: "local-event-2", user_id: null, teacher_id: ids.teacher, type: "vacation", event_date: today, amount: null, score: null, notes: "Approved half-day leave.", created_by: ids.admin, created_at: now },
+  ],
+  audit_logs: [
+    { id: "local-log-1", actor_user_id: ids.admin, actor_name: "Local Admin", actor_email: "admin@local.test", action: "updated", entity_type: "student", entity_id: "local-student-1", details: { fields: ["amount_paid", "payment_comment"], note: "Demo student payment update" }, created_at: now },
+    { id: "local-log-2", actor_user_id: ids.admin, actor_name: "Local Admin", actor_email: "admin@local.test", action: "created", entity_type: "class", entity_id: ids.classB2, details: { name: "B2 Weekend", status: "finished" }, created_at: now },
+  ],
+  textbook_inventory: [
+    { id: "local-book-1", title: "Menschen A1 Kursbuch", level: "A1", edition: "2024", quantity_on_hand: 12, quantity_needed: 20, quantity_ordered: 8, ordered_at: today, expected_delivery_date: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10), supplier: "Hueber", notes: "Delivery pending", created_at: now, updated_at: now },
+    { id: "local-book-2", title: "Sicher! B1+ Arbeitsbuch", level: "B1", edition: "2023", quantity_on_hand: 18, quantity_needed: 18, quantity_ordered: 0, ordered_at: null, expected_delivery_date: null, supplier: "Hueber", notes: "Enough for current group", created_at: now, updated_at: now },
+    { id: "local-book-3", title: "Aspekte neu B2", level: "B2", edition: "2024", quantity_on_hand: 3, quantity_needed: 15, quantity_ordered: 12, ordered_at: today, expected_delivery_date: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10), supplier: "Klett", notes: "Priority order", created_at: now, updated_at: now },
   ],
 };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 
 export type ExcelRow = Record<string, string | number | boolean | null | undefined>;
 
@@ -35,12 +35,29 @@ export async function readExcel(file: File): Promise<ExcelRow[]> {
 
 type ExportExcelOptions = {
   widths?: number[];
+  rowFill?: (row: ExcelRow, index: number) => string | undefined;
 };
 
 export function exportExcel(filename: string, rows: ExcelRow[], sheetName = "Sheet1", options: ExportExcelOptions = {}) {
   const worksheet = XLSX.utils.json_to_sheet(rows);
   if (options.widths) worksheet["!cols"] = options.widths.map((wch) => ({ wch }));
   worksheet["!freeze"] = { xSplit: 0, ySplit: 1 };
+  const range = XLSX.utils.decode_range(worksheet["!ref"] ?? "A1");
+  for (let column = range.s.c; column <= range.e.c; column += 1) {
+    const cell = worksheet[XLSX.utils.encode_cell({ r: 0, c: column })];
+    if (cell) cell.s = { fill: { fgColor: { rgb: "1B4332" } }, font: { bold: true, color: { rgb: "FFFFFF" } }, alignment: { vertical: "center", horizontal: "center", wrapText: true } };
+  }
+  if (options.rowFill) {
+    rows.forEach((row, index) => {
+      const fill = options.rowFill?.(row, index);
+      if (!fill) return;
+      const sheetRow = index + 1;
+      for (let column = range.s.c; column <= range.e.c; column += 1) {
+        const cell = worksheet[XLSX.utils.encode_cell({ r: sheetRow, c: column })];
+        if (cell) cell.s = { fill: { fgColor: { rgb: fill } }, alignment: { vertical: "center", horizontal: "left", wrapText: true } };
+      }
+    });
+  }
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
   XLSX.writeFile(workbook, filename);

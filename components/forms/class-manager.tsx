@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { ClassExcelTools } from "@/components/forms/class-excel-tools";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { recordAudit } from "@/lib/audit";
 
 type Teacher = { id: string; name: string };
 type ClassStudent = { id: string; full_name: string; phone?: string | null; email?: string | null; level?: string | null; learning_mode?: string | null; status?: string | null };
@@ -16,14 +17,31 @@ type ClassRow = {
   name: string;
   teacher_id?: string | null;
   level?: string | null;
+  current_chapter?: string | null;
   learning_mode?: string | null;
   schedule: string;
   capacity: number;
+  total_sessions?: number | null;
+  sessions_done?: number | null;
+  class_status?: "not_started" | "started" | "finished" | string | null;
+  last_session_completed_date?: string | null;
+  student_scan_count?: number;
+  teacher_scanned?: boolean;
+  session_qualified?: boolean;
   teachers?: { name: string } | null;
   students?: ClassStudent[];
 };
 
 const weekDays = ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+
+function groupStatus(row: ClassRow) {
+  const done = Number(row.sessions_done ?? 0);
+  const total = Number(row.total_sessions ?? 0);
+  const value = row.class_status ?? (total > 0 && done >= total ? "finished" : done > 0 ? "started" : "not_started");
+  if (value === "finished") return { label: "Finished", className: "border-yellow-300 bg-yellow-50" };
+  if (value === "started") return { label: "Started", className: "border-green-300 bg-green-50" };
+  return { label: "Not started", className: "border-blue-300 bg-blue-50" };
+}
 
 export function ClassManager({ initialClasses, teachers }: { initialClasses: ClassRow[]; teachers: Teacher[] }) {
   const [classes, setClasses] = useState(initialClasses);
@@ -31,10 +49,13 @@ export function ClassManager({ initialClasses, teachers }: { initialClasses: Cla
   const [name, setName] = useState("");
   const [teacherId, setTeacherId] = useState(teachers[0]?.id ?? "");
   const [level, setLevel] = useState("");
+  const [currentChapter, setCurrentChapter] = useState("");
   const [learningMode, setLearningMode] = useState("offline");
-  const [scheduleDays, setScheduleDays] = useState<string[]>([]);
-  const [scheduleTime, setScheduleTime] = useState("");
+  const [scheduleSlots, setScheduleSlots] = useState<Record<string, string>>({});
   const [capacity, setCapacity] = useState("12");
+  const [totalSessions, setTotalSessions] = useState("12");
+  const [sessionsDone, setSessionsDone] = useState("0");
+  const [classStatus, setClassStatus] = useState("not_started");
   const [saved, setSaved] = useState("");
   const [openClassIds, setOpenClassIds] = useState<string[]>([]);
 
@@ -46,10 +67,13 @@ export function ClassManager({ initialClasses, teachers }: { initialClasses: Cla
     setName("");
     setTeacherId(teachers[0]?.id ?? "");
     setLevel("");
+    setCurrentChapter("");
     setLearningMode("offline");
-    setScheduleDays([]);
-    setScheduleTime("");
+    setScheduleSlots({});
     setCapacity("12");
+    setTotalSessions("12");
+    setSessionsDone("0");
+    setClassStatus("not_started");
     setSaved("");
   }
 
@@ -58,17 +82,30 @@ export function ClassManager({ initialClasses, teachers }: { initialClasses: Cla
     setName(row.name);
     setTeacherId(row.teacher_id ?? teachers[0]?.id ?? "");
     setLevel(row.level ?? "");
+    setCurrentChapter(row.current_chapter ?? "");
     setLearningMode(row.learning_mode === "online" ? "online" : "offline");
-    setScheduleDays(weekDays.filter((day) => row.schedule.includes(day)));
-    setScheduleTime(row.schedule.replace(weekDays.filter((day) => row.schedule.includes(day)).join(" "), "").trim());
+    const slots: Record<string, string> = {};
+    if (row.schedule.includes("|")) {
+      row.schedule.split("|").forEach((part) => {
+        const day = weekDays.find((item) => part.trim().startsWith(item));
+        if (day) slots[day] = part.trim().slice(day.length).trim();
+      });
+    } else {
+      const time = row.schedule.match(/\d{1,2}:\d{2}/)?.[0] ?? "";
+      weekDays.filter((day) => row.schedule.includes(day)).forEach((day) => { slots[day] = time; });
+    }
+    setScheduleSlots(slots);
     setCapacity(String(row.capacity));
+    setTotalSessions(String(row.total_sessions ?? 12));
+    setSessionsDone(String(row.sessions_done ?? 0));
+    setClassStatus(row.class_status ?? (Number(row.sessions_done ?? 0) > 0 ? "started" : "not_started"));
     setSaved("");
   }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    const schedule = `${scheduleDays.join(" ")} ${scheduleTime}`.trim();
-    const payload = { name, teacher_id: teacherId || null, level, learning_mode: learningMode, schedule, capacity: Number(capacity) };
+    const schedule = weekDays.filter((day) => scheduleSlots[day]).map((day) => `${day} ${scheduleSlots[day]}`).join(" | ");
+    const payload = { name, teacher_id: teacherId || null, level, current_chapter: currentChapter, learning_mode: learningMode, schedule, capacity: Number(capacity), total_sessions: Number(totalSessions), sessions_done: Number(sessionsDone), class_status: classStatus };
     const supabase = createSupabaseBrowserClient();
     if (editing) {
       const { error } = await supabase.from("classes").update(payload).eq("id", editing.id);
@@ -77,12 +114,13 @@ export function ClassManager({ initialClasses, teachers }: { initialClasses: Cla
         return;
       }
       setClasses((rows) => rows.map((row) => row.id === editing.id ? { ...row, ...payload, teachers: teachers.find((teacher) => teacher.id === teacherId) ?? null } : row));
+      void recordAudit("updated", "class", editing.id, { fields: Object.keys(payload), name: payload.name, status: payload.class_status });
       setSaved("Class updated");
       setEditing((current) => current ? { ...current, ...payload } : current);
       return;
     }
 
-    const { data, error } = await supabase.from("classes").insert(payload).select("id,name,teacher_id,level,learning_mode,schedule,capacity").single();
+    const { data, error } = await supabase.from("classes").insert(payload).select("id,name,teacher_id,level,current_chapter,learning_mode,schedule,capacity,total_sessions,sessions_done,last_session_completed_date,class_status").single();
     if (error) {
       setSaved(error.message);
       return;
@@ -92,13 +130,19 @@ export function ClassManager({ initialClasses, teachers }: { initialClasses: Cla
       name: data.name,
       teacher_id: data.teacher_id,
       level: data.level,
+      current_chapter: data.current_chapter ?? payload.current_chapter,
       learning_mode: data.learning_mode,
       schedule: data.schedule,
       capacity: data.capacity,
+      total_sessions: data.total_sessions ?? payload.total_sessions,
+      sessions_done: data.sessions_done ?? payload.sessions_done,
+      class_status: data.class_status ?? payload.class_status,
+      last_session_completed_date: data.last_session_completed_date ?? null,
       teachers: teachers.find((teacher) => teacher.id === data.teacher_id) ?? null,
       students: [],
     };
     setClasses((rows) => [created, ...rows]);
+    void recordAudit("created", "class", data.id, { fields: Object.keys(payload), name: payload.name, status: payload.class_status });
     setSaved("Class saved");
     reset();
   }
@@ -107,9 +151,51 @@ export function ClassManager({ initialClasses, teachers }: { initialClasses: Cla
     () => classes.map((row) => ({ ...row, teacher: row.teachers?.name ?? teachers.find((teacher) => teacher.id === row.teacher_id)?.name ?? "Unassigned" })),
     [classes, teachers],
   );
+  const [teacherFilter, setTeacherFilter] = useState("all");
+  const [levelFilter, setLevelFilter] = useState("all");
+  const [modeFilter, setModeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedClassIds, setSelectedClassIds] = useState<Set<string>>(new Set());
+  const filteredRows = useMemo(() => tableRows.filter((row) => {
+    const status = groupStatus(row).label.toLowerCase().replace(" ", "_");
+    return (teacherFilter === "all" || row.teacher_id === teacherFilter)
+      && (levelFilter === "all" || row.level === levelFilter)
+      && (modeFilter === "all" || row.learning_mode === modeFilter)
+      && (statusFilter === "all" || status === statusFilter);
+  }), [tableRows, teacherFilter, levelFilter, modeFilter, statusFilter]);
+  const selectedRows = useMemo(() => classes.filter((row) => selectedClassIds.has(row.id)), [classes, selectedClassIds]);
+
+  function toggleClassSelection(id: string) {
+    setSelectedClassIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleFilteredSelection() {
+    setSelectedClassIds((current) => {
+      const next = new Set(current);
+      const allSelected = filteredRows.length > 0 && filteredRows.every((row) => next.has(row.id));
+      filteredRows.forEach((row) => allSelected ? next.delete(row.id) : next.add(row.id));
+      return next;
+    });
+  }
 
   function toggleDay(day: string) {
-    setScheduleDays((days) => days.includes(day) ? days.filter((item) => item !== day) : [...days, day]);
+    setScheduleSlots((slots) => {
+      if (slots[day] !== undefined) {
+        const next = { ...slots };
+        delete next[day];
+        return next;
+      }
+      return { ...slots, [day]: "" };
+    });
+  }
+
+  function setScheduleTime(day: string, time: string) {
+    setScheduleSlots((slots) => ({ ...slots, [day]: time }));
   }
 
   function toggleClass(id: string) {
@@ -166,9 +252,17 @@ export function ClassManager({ initialClasses, teachers }: { initialClasses: Cla
     win.document.close();
   }
 
+  function printFilteredClasses() {
+    const rows = filteredRows.map((row) => `<tr><td>${row.name}</td><td>${row.level ?? ""}</td><td>${row.current_chapter ?? ""}</td><td>${row.teacher}</td><td>${row.learning_mode ?? ""}</td><td>${row.schedule ?? ""}</td><td>${groupStatus(row).label}</td><td>${row.sessions_done ?? 0}/${row.total_sessions ?? 0}</td></tr>`).join("");
+    const win = window.open("", "_blank", "width=1100,height=800");
+    if (!win) return;
+    win.document.write(`<html><head><title>Filtered classes</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#111}h1{font-size:22px}table{border-collapse:collapse;width:100%;margin-top:18px}th,td{border:1px solid #ccc;padding:8px;text-align:left}th{background:#1B4332;color:white}</style></head><body><h1>Filtered classes (${filteredRows.length})</h1><table><thead><tr><th>Name</th><th>Level</th><th>Chapter</th><th>Teacher</th><th>Mode</th><th>Schedule</th><th>Status</th><th>Sessions</th></tr></thead><tbody>${rows || `<tr><td colspan="8">No classes match the selected filters.</td></tr>`}</tbody></table><script>window.print();</script></body></html>`);
+    win.document.close();
+  }
+
   return (
     <div className="space-y-6">
-      <ClassExcelTools rows={classes as unknown as Record<string, unknown>[]} teachers={teachers} />
+      <ClassExcelTools rows={(selectedRows.length ? selectedRows : classes) as unknown as Record<string, unknown>[]} teachers={teachers} selectedCount={selectedRows.length} />
       <Card>
         <CardHeader className="flex-row items-center justify-between gap-3">
           <CardTitle>{title}</CardTitle>
@@ -185,23 +279,38 @@ export function ClassManager({ initialClasses, teachers }: { initialClasses: Cla
               {teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}
             </Select>
             <Input placeholder="Level" value={level} onChange={(event) => setLevel(event.target.value)} />
+            <Input placeholder="Current Kapitel / chapter" value={currentChapter} onChange={(event) => setCurrentChapter(event.target.value)} />
             <Select value={learningMode} onChange={(event) => setLearningMode(event.target.value)}>
               <option value="offline">Offline</option>
               <option value="online">Online</option>
             </Select>
             <div className="grid gap-2 md:col-span-4">
               <p className="text-sm font-medium">Weekly schedule</p>
-              <div className="grid grid-cols-2 gap-2 md:grid-cols-7">
+              <div className="grid grid-cols-2 gap-1.5 md:grid-cols-7">
                 {weekDays.map((day) => (
-                  <Button key={day} type="button" variant={scheduleDays.includes(day) ? "default" : "outline"} onClick={() => toggleDay(day)}>
+                  <Button key={day} className="h-9 px-2 text-xs" type="button" variant={scheduleSlots[day] !== undefined ? "default" : "outline"} onClick={() => toggleDay(day)}>
                     {day.slice(0, 3)}
                   </Button>
                 ))}
               </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {weekDays.filter((day) => scheduleSlots[day] !== undefined).map((day) => (
+                  <label key={day} className="grid grid-cols-[1fr_1fr] items-center gap-2 text-sm">
+                    <span>{day}</span>
+                    <Input required type="time" value={scheduleSlots[day]} onChange={(event) => setScheduleTime(day, event.target.value)} />
+                  </label>
+                ))}
+              </div>
             </div>
-            <Input required placeholder="Time, e.g. 18:00" value={scheduleTime} onChange={(event) => setScheduleTime(event.target.value)} />
-            <Input required type="number" min="1" placeholder="Capacity" value={capacity} onChange={(event) => setCapacity(event.target.value)} />
-            <Button className="md:col-span-4" disabled={!scheduleDays.length || !scheduleTime}>
+            <label className="grid gap-1 text-sm"><span className="font-medium">Capacity</span><Input required type="number" min="1" value={capacity} onChange={(event) => setCapacity(event.target.value)} /></label>
+            <label className="grid gap-1 text-sm"><span className="font-medium">Total sessions</span><Input required type="number" min="0" value={totalSessions} onChange={(event) => setTotalSessions(event.target.value)} /></label>
+            <label className="grid gap-1 text-sm"><span className="font-medium">Sessions completed</span><Input required type="number" min="0" max={totalSessions} value={sessionsDone} onChange={(event) => setSessionsDone(event.target.value)} /></label>
+            <label className="grid gap-1 text-sm"><span className="font-medium">Group status</span><Select value={classStatus} onChange={(event) => setClassStatus(event.target.value)}>
+              <option value="not_started">Not started</option>
+              <option value="started">Started</option>
+              <option value="finished">Finished</option>
+            </Select></label>
+            <Button className="md:col-span-4" disabled={!Object.keys(scheduleSlots).length || Object.values(scheduleSlots).some((time) => !time)}>
               {editing ? <Edit2 size={16} /> : <Plus size={16} />}
               {buttonLabel}
             </Button>
@@ -212,33 +321,49 @@ export function ClassManager({ initialClasses, teachers }: { initialClasses: Cla
 
       <Card>
         <CardHeader><CardTitle>Created Classes</CardTitle></CardHeader>
-        <CardContent className="overflow-auto">
-          <table className="w-full min-w-[980px] text-sm">
-            <thead className="bg-muted">
+        <CardContent className="max-h-[70vh] overflow-auto rounded-lg p-0">
+          <div className="mb-4 grid gap-2 p-4 pb-0 sm:grid-cols-2 lg:grid-cols-4">
+            <Select value={teacherFilter} onChange={(event) => setTeacherFilter(event.target.value)}><option value="all">All teachers</option>{teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}</Select>
+            <Select value={levelFilter} onChange={(event) => setLevelFilter(event.target.value)}><option value="all">All levels</option>{Array.from(new Set(tableRows.map((row) => row.level).filter(Boolean))).map((item) => <option key={item} value={item ?? ""}>{item}</option>)}</Select>
+            <Select value={modeFilter} onChange={(event) => setModeFilter(event.target.value)}><option value="all">Online / offline</option><option value="online">Online</option><option value="offline">Offline</option></Select>
+            <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">All statuses</option><option value="not_started">Not started</option><option value="started">Started</option><option value="finished">Finished</option></Select>
+            <Button type="button" variant="outline" onClick={printFilteredClasses}><Printer size={16} /> Print filtered ({filteredRows.length})</Button>
+          </div>
+          <table className="w-full min-w-[1280px] text-sm">
+            <thead className="sticky top-0 z-10 bg-muted">
               <tr>
-                {["", "Name", "Level", "Online / Offline", "Teacher", "Schedule", "Capacity", "Students", "Actions"].map((header) => (
-                  <th key={header} className="px-4 py-3 text-left font-semibold">{header}</th>
+                {["", "Name", "Level", "Chapter", "Online / Offline", "Teacher", "Schedule", "Stopped at", "Sessions", "Status", "Today", "Students", "Actions"].map((header, index) => (
+                  <th key={header} className="px-4 py-3 text-left font-semibold">{index === 0 ? <input type="checkbox" aria-label="Select filtered classes" checked={filteredRows.length > 0 && filteredRows.every((row) => selectedClassIds.has(row.id))} onChange={toggleFilteredSelection} /> : header}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {tableRows.map((row) => {
+              {filteredRows.map((row) => {
                 const isOpen = openClassIds.includes(row.id);
                 const students = row.students ?? [];
+                const status = groupStatus(row);
                 return (
                   <Fragment key={row.id}>
-                    <tr key={row.id} className="border-t">
+                    <tr key={row.id} className={`border-t ${status.className}`}>
                       <td className="px-4 py-3">
-                        <Button type="button" size="icon" variant="ghost" onClick={() => toggleClass(row.id)} aria-label={`Open ${row.name}`}>
+                        <div className="flex items-center gap-2"><input type="checkbox" aria-label={`Select ${row.name}`} checked={selectedClassIds.has(row.id)} onChange={() => toggleClassSelection(row.id)} /><Button type="button" size="icon" variant="ghost" onClick={() => toggleClass(row.id)} aria-label={`Open ${row.name}`}>
                           {isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                        </Button>
+                        </Button></div>
                       </td>
                       <td className="px-4 py-3 font-semibold">{row.name}</td>
                       <td className="px-4 py-3">{row.level}</td>
+                      <td className="px-4 py-3">{row.current_chapter}</td>
                       <td className="px-4 py-3">{row.learning_mode}</td>
                       <td className="px-4 py-3">{row.teacher}</td>
                       <td className="px-4 py-3">{row.schedule}</td>
-                      <td className="px-4 py-3">{row.capacity}</td>
+                      <td className="px-4 py-3">{row.sessions_done ?? 0}</td>
+                      <td className="px-4 py-3">{row.total_sessions ?? 0}</td>
+                      <td className="px-4 py-3 font-semibold">{status.label}</td>
+                      <td className="px-4 py-3">
+                        <div className="space-y-1">
+                          <span className={row.session_qualified ? "font-semibold text-green-700" : "text-muted-foreground"}>{row.session_qualified ? "Completed" : `${row.student_scan_count ?? 0}/3 students${row.teacher_scanned ? " + teacher" : " + teacher pending"}`}</span>
+                        </div>
+                      </td>
                       <td className="px-4 py-3">{students.length}</td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-2">
@@ -249,7 +374,7 @@ export function ClassManager({ initialClasses, teachers }: { initialClasses: Cla
                     </tr>
                     {isOpen && (
                       <tr key={`${row.id}-students`} className="border-t bg-white">
-                        <td colSpan={9} className="p-4">
+                        <td colSpan={13} className="p-4">
                           <div className="rounded-md border">
                             <table className="w-full text-sm">
                               <thead className="bg-muted">

@@ -85,7 +85,7 @@ export function AccountRecordForm({ students, classes, teachers, users }: { stud
   );
 }
 
-export function ExamRecordForm({ students }: { students: Option[] }) {
+export function ExamRecordForm({ students, classes = [] }: { students: Option[]; classes?: Option[] }) {
   const [saved, setSaved] = useState("");
   async function submit(form: FormData) {
     const supabase = createSupabaseBrowserClient();
@@ -96,6 +96,8 @@ export function ExamRecordForm({ students }: { students: Option[] }) {
       level_result: form.get("level_result"),
       score_percent: form.get("score_percent") ? Number(form.get("score_percent")) : null,
       result_comment: form.get("result_comment"),
+      booking_status: form.get("booking_status") ?? "not_booked",
+      booked_class_id: form.get("booked_class_id") || null,
     });
     setSaved(error?.message ?? "Exam record saved");
   }
@@ -109,6 +111,8 @@ export function ExamRecordForm({ students }: { students: Option[] }) {
           <Input name="scheduled_at" type="datetime-local" required />
           <Input name="level_result" placeholder="Level result, e.g. A2" />
           <Input name="score_percent" type="number" min="0" max="100" step="0.01" placeholder="Score %" />
+          <Select name="booking_status" defaultValue="not_booked"><option value="not_booked">Not booked</option><option value="booked">Booked</option></Select>
+          <Select name="booked_class_id"><option value="">Booked group...</option>{classes.map((item) => <option key={item.id} value={item.id}>{label(item)}</option>)}</Select>
           <Textarea name="result_comment" className="md:col-span-3" placeholder="Result comment..." />
           <Button className="md:col-span-4"><Plus size={16} /> Save Exam</Button>
           {saved && <p className="text-sm text-muted-foreground md:col-span-4">{saved}</p>}

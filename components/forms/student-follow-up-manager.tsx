@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/i18n";
 import { formatMoney } from "@/lib/utils";
+import { exportExcel } from "@/lib/excel";
 
 type StudentFollowUp = {
   id: string;
@@ -35,6 +36,8 @@ type StudentFollowUp = {
   feedback: Array<{ id?: string; teacher_id?: string | null; source: string; rating: string; comment: string; date: string }>;
   attendance: Array<{ date: string; status: string }>;
   worker_comments?: Array<{ worker: string; role: string; comment: string; date: string }>;
+  promotion_candidate?: boolean;
+  next_level?: string;
 };
 
 type ClassOption = { id: string; name: string };
@@ -71,10 +74,10 @@ function displayValue(value: string | null | undefined, lang: Lang) {
 
 const copy = {
   en: {
-    followUp: "Students Follow Up", edit: "Edit", close: "Close editor", fullName: "Full name", phone: "Phone", email: "Email", level: "Level", tags: "Tags", noClass: "No class", offline: "Offline", online: "Online", active: "Active", inactive: "Inactive", graduated: "Graduated", totalPrice: "Total price", paid: "Amount paid", paymentDate: "Payment date", paymentComment: "Comments about payment/student...", saveChanges: "Save student changes", rating: "Rating 1-5", teacherComment: "Teacher comment about this student...", saveComment: "Save comment", commentSaved: "Comment saved", studentUpdated: "Student updated", teacherHint: "Add or edit your comment for each student from this list.", adminHint: "Hover over a student name to see the complete student card.", editHint: "Use Edit to update student details, or Print/PDF for a full printable profile.", printHint: "Use Print/PDF for a full printable profile.", search: "Search follow up...", student: "Student", className: "Class", teacher: "Teacher", mode: "Mode", notPaid: "Not paid", latestExam: "Latest exam", latestFeedback: "Latest feedback", staffComment: "Staff comment", actions: "Actions", print: "Print/PDF", comment: "Comment", noStudents: "No students found.", noEmail: "No email", noTeacher: "No teacher", schedule: "Schedule", price: "Price", paymentCommentLabel: "Payment comment", accountNotes: "Account notes", none: "None", attendance: "Latest attendance", workerComment: "Student comment about staff", status: "Status",
+    followUp: "Students Follow Up", edit: "Edit", close: "Close editor", fullName: "Full name", phone: "Phone", email: "Email", level: "Level", tags: "Tags", noClass: "No class", offline: "Offline", online: "Online", active: "Active", inactive: "Inactive", graduated: "Graduated", totalPrice: "Total price", paid: "Amount paid", paymentDate: "Payment date", paymentComment: "Comments about payment/student...", saveChanges: "Save student changes", rating: "Rating 1-5", teacherComment: "Teacher comment about this student...", saveComment: "Save comment", commentSaved: "Comment saved", studentUpdated: "Student updated", teacherHint: "Add or edit your comment for each student from this list.", adminHint: "Hover over a student name to see the complete student card.", editHint: "Use Edit to update student details, or Print/PDF for a full printable profile.", printHint: "Use Print/PDF for a full printable profile.", search: "Search follow up...", student: "Student", className: "Class", teacher: "Teacher", mode: "Mode", notPaid: "Not paid", latestExam: "Latest exam", latestFeedback: "Latest feedback", staffComment: "Staff comment", actions: "Actions", print: "Print/PDF", comment: "Comment", noStudents: "No students found.", noEmail: "No email", noTeacher: "No teacher", schedule: "Schedule", price: "Price", paymentCommentLabel: "Payment comment", accountNotes: "Account notes", none: "None", attendance: "Latest attendance", workerComment: "Student comment about staff", status: "Status", promotion: "Next level", promotionCandidates: "Promotion candidates", exportPromotion: "Export promotion list", candidate: "Ready to continue",
   },
   ar: {
-    followUp: "متابعة الطلاب", edit: "تعديل", close: "إغلاق التعديل", fullName: "الاسم بالكامل", phone: "رقم الهاتف", email: "البريد الإلكتروني", level: "المستوى", tags: "التصنيفات", noClass: "بدون فصل", offline: "أوفلاين", online: "أونلاين", active: "نشط", inactive: "غير نشط", graduated: "متخرج", totalPrice: "السعر الإجمالي", paid: "المدفوع", paymentDate: "تاريخ السداد", paymentComment: "ملاحظات السداد أو الطالب...", saveChanges: "حفظ تعديلات الطالب", rating: "التقييم من 1 إلى 5", teacherComment: "تعليق المدرس على الطالب...", saveComment: "حفظ التعليق", commentSaved: "تم حفظ التعليق", studentUpdated: "تم تحديث بيانات الطالب", teacherHint: "أضف أو عدّل تعليقك على كل طالب من هذه القائمة.", adminHint: "مرر المؤشر فوق اسم الطالب لعرض بطاقة بياناته كاملة.", editHint: "استخدم تعديل لتحديث بيانات الطالب أو طباعة ملف كامل بصيغة PDF.", printHint: "استخدم طباعة / PDF لعرض ملف الطالب كاملًا.", search: "البحث في المتابعة...", student: "الطالب", className: "الفصل", teacher: "المدرس", mode: "النظام", notPaid: "المتبقي", latestExam: "آخر اختبار", latestFeedback: "آخر تقييم", staffComment: "تعليق على موظف", actions: "الإجراءات", print: "طباعة / PDF", comment: "تعليق", noStudents: "لا يوجد طلاب.", noEmail: "لا يوجد بريد", noTeacher: "لا يوجد مدرس", schedule: "الجدول", price: "السعر", paymentCommentLabel: "تعليق السداد", accountNotes: "ملاحظات الحساب", none: "لا يوجد", attendance: "آخر حضور", workerComment: "تعليق الطالب على الموظف", status: "الحالة",
+    followUp: "متابعة الطلاب", edit: "تعديل", close: "إغلاق التعديل", fullName: "الاسم بالكامل", phone: "رقم الهاتف", email: "البريد الإلكتروني", level: "المستوى", tags: "التصنيفات", noClass: "بدون فصل", offline: "أوفلاين", online: "أونلاين", active: "نشط", inactive: "غير نشط", graduated: "متخرج", totalPrice: "السعر الإجمالي", paid: "المدفوع", paymentDate: "تاريخ السداد", paymentComment: "ملاحظات السداد أو الطالب...", saveChanges: "حفظ تعديلات الطالب", rating: "التقييم من 1 إلى 5", teacherComment: "تعليق المدرس على الطالب...", saveComment: "حفظ التعليق", commentSaved: "تم حفظ التعليق", studentUpdated: "تم تحديث بيانات الطالب", teacherHint: "أضف أو عدّل تعليقك على كل طالب من هذه القائمة.", adminHint: "مرر المؤشر فوق اسم الطالب لعرض بطاقة بياناته كاملة.", editHint: "استخدم تعديل لتحديث بيانات الطالب أو طباعة ملف كامل بصيغة PDF.", printHint: "استخدم طباعة / PDF لعرض ملف الطالب كاملًا.", search: "البحث في المتابعة...", student: "الطالب", className: "الفصل", teacher: "المدرس", mode: "النظام", notPaid: "المتبقي", latestExam: "آخر اختبار", latestFeedback: "آخر تقييم", staffComment: "تعليق على موظف", actions: "الإجراءات", print: "طباعة / PDF", comment: "تعليق", noStudents: "لا يوجد طلاب.", noEmail: "لا يوجد بريد", noTeacher: "لا يوجد مدرس", schedule: "الجدول", price: "السعر", paymentCommentLabel: "تعليق السداد", accountNotes: "ملاحظات الحساب", none: "لا يوجد", attendance: "آخر حضور", workerComment: "تعليق الطالب على الموظف", status: "الحالة", promotion: "المستوى التالي", promotionCandidates: "الطلاب المرشحون للانتقال", exportPromotion: "تصدير قائمة المرشحين", candidate: "جاهز للانتقال",
   },
 } as const;
 
@@ -144,6 +147,7 @@ export function StudentFollowUpManager({
   const [query, setQuery] = useState("");
   const [saved, setSaved] = useState("");
   const [hovered, setHovered] = useState<{ student: StudentFollowUp; left: number; top: number } | null>(null);
+  const [selectedPromotionIds, setSelectedPromotionIds] = useState<Set<string>>(new Set());
   const isTeacherMode = mode === "teacher";
 
   const visible = useMemo(() => {
@@ -151,6 +155,50 @@ export function StudentFollowUpManager({
     if (!q) return students;
     return students.filter((student) => JSON.stringify(student).toLowerCase().includes(q));
   }, [query, students]);
+
+  const promotionCandidates = useMemo(() => students.filter((student) => student.promotion_candidate), [students]);
+
+  const selectedPromotionCandidates = promotionCandidates.filter((student) => selectedPromotionIds.has(student.id));
+  const promotionExportRows = selectedPromotionCandidates.length ? selectedPromotionCandidates : promotionCandidates;
+
+  function togglePromotionSelection(id: string) {
+    setSelectedPromotionIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllPromotionSelection() {
+    setSelectedPromotionIds((current) => {
+      const next = new Set(current);
+      const allSelected = promotionCandidates.length > 0 && promotionCandidates.every((student) => next.has(student.id));
+      promotionCandidates.forEach((student) => allSelected ? next.delete(student.id) : next.add(student.id));
+      return next;
+    });
+  }
+
+  function exportPromotionCandidates() {
+    exportExcel("student-promotion-candidates.xlsx", promotionExportRows.map((student) => ({
+      Name: student.full_name,
+      Phone: student.phone,
+      "Current level": student.level ?? "",
+      "Next level": student.next_level ?? "",
+      Class: student.class_name ?? "",
+      Teacher: student.teacher_name ?? "",
+      "Latest exam": student.exams[0] ? `${student.exams[0].type} ${student.exams[0].date}` : "",
+      Score: student.exams[0]?.score ?? "",
+    })), "Promotion candidates", { widths: [26, 18, 16, 16, 24, 24, 26, 12] });
+  }
+
+  function printPromotionCandidates() {
+    const rows = promotionExportRows.map((student) => `<tr><td>${student.full_name}</td><td>${student.phone}</td><td>${student.level ?? ""}</td><td>${student.next_level ?? ""}</td><td>${student.class_name ?? ""}</td><td>${student.teacher_name ?? ""}</td><td>${student.exams[0]?.score ?? ""}</td></tr>`).join("");
+    const win = window.open("", "_blank", "width=1000,height=700");
+    if (!win) return;
+    win.document.write(`<html><head><title>Promotion candidates</title><style>body{font-family:Arial;padding:24px}table{border-collapse:collapse;width:100%;margin-top:18px}th,td{border:1px solid #ccc;padding:9px;text-align:left}th{background:#1B4332;color:#fff}</style></head><body><h1>Promotion candidates (${promotionExportRows.length})</h1><table><thead><tr><th>Name</th><th>Phone</th><th>Current level</th><th>Next level</th><th>Class</th><th>Teacher</th><th>Score</th></tr></thead><tbody>${rows}</tbody></table><script>window.print();</script></body></html>`);
+    win.document.close();
+  }
 
   function setField(key: keyof typeof emptyForm, value: string) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -328,6 +376,18 @@ export function StudentFollowUpManager({
         </CardContent>
       </Card>
 
+      {!isTeacherMode && (
+        <Card className="border-green-200 bg-green-50">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div>
+              <p className="font-semibold">{labels.promotionCandidates}: {promotionCandidates.length}</p>
+              <p className="text-sm text-muted-foreground">{lang === "ar" ? "يتم التعرف عليهم من آخر اختبار بنسبة نجاح 70٪ أو أكثر." : "Detected from the latest exam with a score of 70% or higher."}</p>
+            </div>
+            <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={exportPromotionCandidates} disabled={!selectedPromotionCandidates.length}>{labels.exportPromotion} ({selectedPromotionCandidates.length})</Button><Button type="button" variant="outline" onClick={printPromotionCandidates} disabled={!selectedPromotionCandidates.length}>Print selected ({selectedPromotionCandidates.length})</Button></div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex max-w-md gap-2">
         <Input placeholder={labels.search} value={query} onChange={(event) => setQuery(event.target.value)} />
       </div>
@@ -338,8 +398,8 @@ export function StudentFollowUpManager({
             <tr>
               {(isTeacherMode
                 ? [labels.student, labels.phone, labels.level, labels.className, labels.mode, labels.teacherComment, labels.actions]
-                : [labels.student, labels.phone, labels.level, labels.className, labels.teacher, labels.mode, labels.paid, labels.notPaid, labels.latestExam, labels.latestFeedback, ...(visible.some((student) => (student.worker_comments ?? []).length) ? [labels.staffComment] : []), labels.actions]
-              ).map((header) => <th key={header} className="px-4 py-3 text-left font-semibold">{header}</th>)}
+                : ["", labels.student, labels.phone, labels.level, labels.className, labels.teacher, labels.mode, labels.paid, labels.notPaid, labels.latestExam, labels.promotion, labels.latestFeedback, ...(visible.some((student) => (student.worker_comments ?? []).length) ? [labels.staffComment] : []), labels.actions]
+              ).map((header, index) => <th key={`${header}-${index}`} className="px-4 py-3 text-left font-semibold">{!isTeacherMode && index === 0 ? <input type="checkbox" aria-label="Select promotion candidates" checked={promotionCandidates.length > 0 && promotionCandidates.every((student) => selectedPromotionIds.has(student.id))} onChange={toggleAllPromotionSelection} /> : header}</th>)}
             </tr>
           </thead>
           <tbody>
@@ -350,6 +410,7 @@ export function StudentFollowUpManager({
               const showWorkerComments = visible.some((item) => (item.worker_comments ?? []).length);
               return (
                 <tr key={student.id} className="border-t">
+                  {!isTeacherMode && <td className="px-4 py-3">{student.promotion_candidate ? <input type="checkbox" aria-label={`Select ${student.full_name}`} checked={selectedPromotionIds.has(student.id)} onChange={() => togglePromotionSelection(student.id)} /> : null}</td>}
                   <td className="relative px-4 py-3">
                     {isTeacherMode ? (
                       <span className="font-semibold text-primary">{student.full_name}</span>
@@ -381,6 +442,7 @@ export function StudentFollowUpManager({
                       <td className="px-4 py-3">{formatMoney(Number(student.amount_paid ?? 0))}</td>
                       <td className="px-4 py-3">{formatMoney(balance(student))}</td>
                       <td className="px-4 py-3">{latestExam ? `${latestExam.type} ${latestExam.level} ${latestExam.score}` : ""}</td>
+                      <td className="px-4 py-3">{student.promotion_candidate ? <Badge className="border-green-300 bg-green-50 text-green-700">{labels.candidate}: {student.next_level}</Badge> : ""}</td>
                       <td className="px-4 py-3">{latestFeedback?.comment ?? ""}</td>
                       {showWorkerComments && <td className="px-4 py-3">{latestWorkerComment ? `${latestWorkerComment.worker}: ${latestWorkerComment.comment}` : ""}</td>}
                     </>
