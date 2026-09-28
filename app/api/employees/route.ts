@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
-import { tempPassword } from "@/lib/utils";
 import { hashLocalPassword } from "@/lib/local-auth";
 import { hasSupabaseAdminEnv } from "@/lib/env";
 
@@ -19,9 +18,10 @@ export async function POST(request: Request) {
     const body = await request.json();
     const email = String(body.email ?? "").trim().toLowerCase();
     if (!email || !body.full_name) throw new Error("Employee name and academy email are required.");
-    const temporaryPassword = tempPassword();
+    const password = String(body.password ?? "");
+    if (password.length < 8) throw new Error("Password must be at least 8 characters.");
     const admin = createSupabaseAdminClient();
-    const { data, error } = await admin.auth.admin.createUser({ email, password: temporaryPassword, email_confirm: true });
+    const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
     if (error || !data.user) throw error;
     await admin.from("users").insert({
       id: data.user.id,
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       monthly_salary: Number(body.monthly_salary ?? 0),
       monthly_wage: Number(body.monthly_wage ?? 0),
       hourly_rate: Number(body.hourly_rate ?? 0),
-      ...(hasSupabaseAdminEnv() ? {} : { password_hash: hashLocalPassword(temporaryPassword) }),
+      ...(hasSupabaseAdminEnv() ? {} : { password_hash: hashLocalPassword(password) }),
     });
     if (process.env.RESEND_API_KEY) {
       const resend = new Resend(process.env.RESEND_API_KEY);
@@ -42,10 +42,10 @@ export async function POST(request: Request) {
         from: process.env.FROM_EMAIL!,
         to: email,
         subject: "Your Fließend Deutsch System Access",
-        html: `<div style="font-family:Inter,Arial;color:#0B0B0B"><h1 style="border-bottom:4px solid #DD0000;padding-bottom:8px">Welcome, ${body.full_name}</h1><p>Login URL: ${process.env.NEXT_PUBLIC_SITE_URL}/login</p><p>Email: ${body.email}</p><p>Temporary password: <strong>${temporaryPassword}</strong></p><p>Please log in and you will be prompted to change your password on first login.</p><div style="height:6px;background:#FFCE00;margin-top:24px"></div></div>`,
+        html: `<div style="font-family:Inter,Arial;color:#0B0B0B"><h1 style="border-bottom:4px solid #DD0000;padding-bottom:8px">Welcome, ${body.full_name}</h1><p>Login URL: ${process.env.NEXT_PUBLIC_SITE_URL}/login</p><p>Academy email: ${email}</p><p>Your account password: <strong>${password}</strong></p><p>Use these credentials to log in to the academy system.</p><div style="height:6px;background:#FFCE00;margin-top:24px"></div></div>`,
       });
     }
-    return NextResponse.json({ temporaryPassword, userId: data.user.id });
+    return NextResponse.json({ password, userId: data.user.id });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Failed" }, { status: 400 });
   }
@@ -56,6 +56,12 @@ export async function PATCH(request: Request) {
     await assertAdmin();
     const body = await request.json();
     const admin = createSupabaseAdminClient();
+    const password = String(body.password ?? "");
+    if (password.length > 0 && password.length < 8) throw new Error("Password must be at least 8 characters.");
+    if (password && hasSupabaseAdminEnv()) {
+      const { error: passwordError } = await admin.auth.admin.updateUserById(body.id, { password });
+      if (passwordError) throw passwordError;
+    }
     const { error } = await admin.from("users").update({
       full_name: body.full_name,
       email: body.email,
@@ -66,6 +72,7 @@ export async function PATCH(request: Request) {
       monthly_salary: Number(body.monthly_salary ?? 0),
       monthly_wage: Number(body.monthly_wage ?? 0),
       hourly_rate: Number(body.hourly_rate ?? 0),
+      ...(password && !hasSupabaseAdminEnv() ? { password_hash: hashLocalPassword(password) } : {}),
     }).eq("id", body.id);
     if (error) throw error;
     return NextResponse.json({ ok: true });

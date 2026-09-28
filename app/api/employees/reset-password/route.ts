@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   if (!hasSupabaseAdminEnv()) {
     const { error } = await admin.from("users").update({ password_hash: hashLocalPassword(temporaryPassword) }).eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-    return NextResponse.json({ temporaryPassword });
+    return NextResponse.json({ password: temporaryPassword });
   }
   const { data: userData, error } = await admin.auth.admin.updateUserById(id, { password: temporaryPassword });
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
@@ -30,5 +30,5 @@ export async function POST(request: Request) {
       html: `<div style="font-family:Inter,Arial;color:#0B0B0B"><h1 style="border-bottom:4px solid #DD0000;padding-bottom:8px">Password reset</h1><p>Hello ${profile?.full_name ?? ""}, your temporary password is <strong>${temporaryPassword}</strong>.</p><div style="height:6px;background:#FFCE00;margin-top:24px"></div></div>`,
     });
   }
-  return NextResponse.json({ temporaryPassword });
+  return NextResponse.json({ password: temporaryPassword });
 }

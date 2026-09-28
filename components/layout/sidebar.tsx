@@ -20,7 +20,7 @@ const nav: Record<string, Array<NavItem & { labelKey: keyof typeof dictionaries.
     { href: "/admin/textbooks", label: "Textbook inventory", labelKey: "textbookInventory" },
     { href: "/admin/hr/attendance", label: "HR", labelKey: "hr" },
     { href: "/admin/hr/performance", label: "HR Performance", labelKey: "performance" },
-    { href: "/admin/users", label: "Users", labelKey: "users" },
+    { href: "/admin/account-center", label: "Account Center", labelKey: "accountCenter" },
     { href: "/admin/logs", label: "Logs", labelKey: "logs" },
     { href: "/admin/sales", label: "Sales", labelKey: "sales" },
     { href: "/admin/sales/lists", label: "Manual lists", labelKey: "manualLists" },

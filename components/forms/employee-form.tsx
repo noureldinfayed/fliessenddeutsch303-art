@@ -1,12 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AtSign, Copy, KeyRound, UserPlus } from "lucide-react";
+import { AtSign, Copy, KeyRound, RefreshCw, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import type { Role } from "@/lib/types";
+import { hasSupabaseEnv } from "@/lib/env";
 
 type LeadFile = { id: string; name: string };
 type Employee = {
@@ -23,9 +25,11 @@ type Employee = {
 };
 
 export function EmployeeForm({ leadFiles, employees }: { leadFiles: LeadFile[]; employees: Employee[] }) {
+  const [employeeList, setEmployeeList] = useState(employees);
   const [selected, setSelected] = useState<Employee | null>(null);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("reception");
   const [active, setActive] = useState(true);
   const [salesAccess, setSalesAccess] = useState(false);
@@ -44,10 +48,15 @@ export function EmployeeForm({ leadFiles, employees }: { leadFiles: LeadFile[]; 
     const localPart = fullName.trim().toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/^\.|\.$/g, "") || "employee";
     setEmail(`${localPart}@fliessend-deutsch.local`);
   }
+  function generatePassword() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+    setPassword(Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join(""));
+  }
   function load(employee: Employee) {
     setSelected(employee);
     setFullName(employee.full_name);
     setEmail(employee.email ?? "");
+    setPassword("");
     setRole(employee.role);
     setActive(employee.is_active);
     setSalesAccess(Boolean(employee.permissions?.sales_access));
@@ -68,6 +77,7 @@ export function EmployeeForm({ leadFiles, employees }: { leadFiles: LeadFile[]; 
         id: selected?.id,
         full_name: fullName,
         email,
+        password,
         role,
         is_active: active,
         permissions: {
@@ -83,29 +93,44 @@ export function EmployeeForm({ leadFiles, employees }: { leadFiles: LeadFile[]; 
       }),
     });
     const json = await response.json();
-    setResult(response.ok ? `Temporary password: ${json.temporaryPassword ?? "updated"}` : json.error);
+    setResult(response.ok ? `Account saved. Password: ${json.password ?? password ?? "updated"}` : json.error);
+    if (response.ok) {
+      if (!hasSupabaseEnv() && !isEdit) {
+        const accounts = JSON.parse(localStorage.getItem("fd_local_accounts") ?? "[]") as Array<Record<string, string | boolean>>;
+        localStorage.setItem("fd_local_accounts", JSON.stringify([...accounts.filter((account) => account.email !== email), { id: json.userId, email, password, role, full_name: fullName, is_active: active }]));
+      }
+      setEmployeeList((current) => isEdit ? current.map((item) => item.id === selected?.id ? { ...item, full_name: fullName, role, is_active: active, permissions: { sales_access: salesAccess, assigned_files: assignedFiles, can_view_treasury: canViewTreasury, can_view_payroll: canViewPayroll } } : item) : [{ id: json.userId, full_name: fullName, email, role, is_active: active, permissions: { sales_access: salesAccess, assigned_files: assignedFiles, can_view_treasury: canViewTreasury, can_view_payroll: canViewPayroll } }, ...current]);
+      setPassword("");
+    }
   }
   async function resetPassword() {
     if (!selected) return;
     const response = await fetch("/api/employees/reset-password", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: selected.id }) });
     const json = await response.json();
-    setResult(response.ok ? `Temporary password: ${json.temporaryPassword}` : json.error);
+    setResult(response.ok ? `New password: ${json.password}` : json.error);
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
+    <div className="space-y-6">
+      <div className="border-b border-[#DD0000] pb-4">
+        <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#DD0000]">System administration</p>
+        <h2 className="text-2xl font-semibold tracking-tight">Account Center</h2>
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Create and manage academy login accounts, permissions, employee status, and payroll settings.</p>
+      </div>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
       <Card>
-        <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
+        <CardHeader className="border-b bg-[#FCFAF6]"><CardTitle>{title}</CardTitle><p className="text-sm text-muted-foreground">The email and password below belong to this academy account.</p></CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={submit}>
             <Input required placeholder="Full name" value={fullName} onChange={(event) => setFullName(event.target.value)} />
             <div className="flex gap-2"><Input className="min-w-0 flex-1" required type="email" placeholder="Academy email address" value={email} onChange={(event) => setEmail(event.target.value)} disabled={isEdit} />{!isEdit && <Button type="button" variant="outline" title="Generate academy email" onClick={generateAcademyEmail}><AtSign size={16} /> Generate</Button>}</div>
+            <div className="flex gap-2"><Input className="min-w-0 flex-1" required={!isEdit} type="text" autoComplete="new-password" placeholder={isEdit ? "New password (optional)" : "Permanent account password"} value={password} onChange={(event) => setPassword(event.target.value)} />{!isEdit && <Button type="button" variant="outline" title="Generate password" onClick={generatePassword}><RefreshCw size={16} /> Generate password</Button>}</div>
             <Select value={role} onChange={(event) => { setRole(event.target.value as Role); setSalesAccess(false); setAssignedFiles([]); }}>
               <option value="reception">Reception</option><option value="sales">Sales</option><option value="teacher">Teacher</option><option value="admin">Admin</option>
             </Select>
             {role !== "teacher" && (
-              <div className="space-y-3 rounded-md border p-3">
-                <p className="text-sm font-medium">Payroll calculation</p>
+            <div className="space-y-3 rounded-md border bg-[#FCFAF6] p-4">
+              <p className="text-sm font-semibold">Payroll calculation</p>
                 <div className="grid gap-3 md:grid-cols-3">
                   <Select value={payrollType} onChange={(event) => setPayrollType(event.target.value as "monthly_salary" | "monthly_wage" | "hourly")} aria-label="Payroll type">
                     <option value="monthly_salary">Fixed monthly salary</option>
@@ -119,8 +144,8 @@ export function EmployeeForm({ leadFiles, employees }: { leadFiles: LeadFile[]; 
                 {payrollType === "hourly" && <p className="text-xs text-muted-foreground">Payroll will use Check in hours x hourly rate, then apply bonuses/deductions.</p>}
               </div>
             )}
-            <div className="space-y-3 rounded-md border p-3">
-              <p className="text-sm font-medium">Permissions checklist</p>
+            <div className="space-y-3 rounded-md border bg-[#FCFAF6] p-4">
+              <p className="text-sm font-semibold">Permissions checklist</p>
               {role === "admin" ? (
                 <p className="text-sm text-muted-foreground">Admin has full access automatically.</p>
               ) : (
@@ -147,23 +172,25 @@ export function EmployeeForm({ leadFiles, employees }: { leadFiles: LeadFile[]; 
             <label className="flex items-center gap-2 text-sm"><input checked={active} type="checkbox" onChange={(e) => setActive(e.target.checked)} /> Active</label>
             <div className="flex flex-wrap gap-2">
               <Button><UserPlus size={16} /> {isEdit ? "Update Permissions" : "Create Employee & Send Login"}</Button>
-              {isEdit && <Button type="button" variant="outline" onClick={resetPassword}><KeyRound size={16} /> Reset Password</Button>}
+              {isEdit && <Button type="button" variant="outline" onClick={resetPassword}><KeyRound size={16} /> Generate new password</Button>}
             </div>
-            {result && <div className="flex items-center justify-between rounded-md bg-muted p-3 text-sm"><span>{result}</span><Button type="button" variant="ghost" size="icon" onClick={() => navigator.clipboard.writeText(result.replace("Temporary password: ", ""))}><Copy size={16} /></Button></div>}
+            {result && <div className="flex items-center justify-between rounded-md bg-muted p-3 text-sm"><span>{result}</span><Button type="button" variant="ghost" size="icon" title="Copy account details" onClick={() => navigator.clipboard.writeText(result)}><Copy size={16} /></Button></div>}
           </form>
         </CardContent>
       </Card>
       <Card>
-        <CardHeader><CardTitle>Employees</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
-          {employees.map((employee) => (
-            <button key={employee.id} className="w-full rounded-md border p-3 text-left text-sm hover:bg-muted" onClick={() => load(employee)}>
-              <span className="font-medium">{employee.full_name}</span>
-              <span className="ml-2 text-muted-foreground">{employee.email ?? "no email"} · {employee.role} · {employee.is_active ? "active" : "inactive"}</span>
+        <CardHeader className="border-b bg-[#1B4332] text-white"><CardTitle>Academy accounts</CardTitle><p className="text-sm text-white/75">{employeeList.length} stored employee accounts</p></CardHeader>
+        <CardContent className="space-y-3 p-4">
+          {employeeList.map((employee) => (
+            <button key={employee.id} className="w-full rounded-md border bg-white p-3 text-left text-sm shadow-sm transition hover:border-[#DD0000] hover:bg-[#FCFAF6]" onClick={() => load(employee)}>
+              <span className="block font-semibold">{employee.full_name}</span>
+              <span className="mt-1 block truncate text-xs text-muted-foreground">{employee.email ?? "no email"}</span>
+              <span className="mt-2 flex items-center gap-2"><Badge className="capitalize">{employee.role}</Badge><span className={employee.is_active ? "text-xs text-green-700" : "text-xs text-red-700"}>{employee.is_active ? "Active" : "Inactive"}</span></span>
             </button>
           ))}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

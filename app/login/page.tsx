@@ -32,6 +32,15 @@ function LoginForm() {
     setLoading(true);
     setError("");
     if (!hasSupabaseEnv()) {
+      const localAccounts = JSON.parse(localStorage.getItem("fd_local_accounts") ?? "[]") as Array<{ id: string; email: string; password: string; role: keyof typeof roleHome; full_name: string; is_active: boolean }>;
+      const localAccount = localAccounts.find((account) => account.email.toLowerCase() === email.trim().toLowerCase() && account.password === password);
+      if (localAccount && localAccount.is_active) {
+        document.cookie = `fd_local_user_id=${encodeURIComponent(localAccount.id)}; path=/`;
+        document.cookie = `fd_local_user_email=${encodeURIComponent(localAccount.email)}; path=/`;
+        document.cookie = `fd_local_role=${encodeURIComponent(localAccount.role)}; path=/`;
+        router.replace(roleHome[localAccount.role]);
+        return;
+      }
       const response = await fetch("/api/local-login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, password }) });
       const result = await response.json();
       if (!response.ok) {
