@@ -52,10 +52,10 @@ export function AppShell({ profile, children, lang }: { profile: UserProfile; ch
       ];
   const adminGroups = [
     { label: t.nav.studentsGroup, items: visibleNav.filter((item) => ["/admin/students", "/admin/classes", "/reception/attendance/students", "/admin/exams", "/admin/exams-management"].includes(item.href)) },
-    { label: t.nav.staffGroup, items: visibleNav.filter((item) => item.href.startsWith("/admin/hr") || item.href === "/admin/users") },
+    { label: t.nav.staffGroup, items: visibleNav.filter((item) => item.href.startsWith("/admin/hr")) },
     { label: t.nav.salesGroup, items: visibleNav.filter((item) => item.href.includes("sales") || item.href.includes("/sales/")) },
     { label: t.nav.financeGroup, items: visibleNav.filter((item) => ["/admin/accounts", "/admin/treasury", "/admin/reports", "/admin/textbooks"].includes(item.href)) },
-    { label: t.nav.systemGroup, items: visibleNav.filter((item) => !["/admin/students", "/admin/classes", "/reception/attendance/students", "/admin/exams", "/admin/exams-management", "/admin/accounts", "/admin/treasury", "/admin/reports", "/admin/textbooks", "/admin/users"].includes(item.href) && !item.href.startsWith("/admin/hr") && !item.href.includes("sales") && !item.href.includes("/sales/") && !item.href.startsWith("/teacher/") && !item.href.startsWith("/reception/")) },
+    { label: t.nav.systemGroup, items: visibleNav.filter((item) => !["/admin/students", "/admin/classes", "/reception/attendance/students", "/admin/exams", "/admin/exams-management", "/admin/accounts", "/admin/treasury", "/admin/reports", "/admin/textbooks"].includes(item.href) && !item.href.startsWith("/admin/hr") && !item.href.includes("sales") && !item.href.includes("/sales/") && !item.href.startsWith("/teacher/") && !item.href.startsWith("/reception/")) },
   ].filter((group) => group.items.length);
   const navGroups = profile.role === "admin" ? adminGroups : [{ label: "", items: visibleNav }];
   return (
