@@ -18,6 +18,15 @@ body {
   background: hsl(var(--background));
   color: hsl(var(--foreground));
   overflow-x: hidden;
+  font-feature-settings: "kern" 1, "liga" 1;
+  letter-spacing: 0;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }
 
 .touch-button {

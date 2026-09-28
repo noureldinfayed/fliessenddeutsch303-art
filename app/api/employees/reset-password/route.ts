@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
 import { tempPassword } from "@/lib/utils";
+import { hashLocalPassword } from "@/lib/local-auth";
+import { hasSupabaseAdminEnv } from "@/lib/env";
 
 export async function POST(request: Request) {
   const supabase = await createSupabaseServerClient();
@@ -11,6 +13,11 @@ export async function POST(request: Request) {
   const { id } = await request.json();
   const admin = createSupabaseAdminClient();
   const temporaryPassword = tempPassword();
+  if (!hasSupabaseAdminEnv()) {
+    const { error } = await admin.from("users").update({ password_hash: hashLocalPassword(temporaryPassword) }).eq("id", id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ temporaryPassword });
+  }
   const { data: userData, error } = await admin.auth.admin.updateUserById(id, { password: temporaryPassword });
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   const { data: profile } = await admin.from("users").select("full_name").eq("id", id).single();

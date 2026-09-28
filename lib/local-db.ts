@@ -31,10 +31,11 @@ const mockStudentNames = [
 
 const db: Record<string, Row[]> = {
   users: [
-    { id: ids.admin, full_name: "Local Admin", email: "admin@local.test", role: "admin", is_active: true, permissions: {}, payroll_type: "monthly_salary", monthly_salary: 18000, monthly_wage: 0, hourly_rate: 0, created_at: now },
-    { id: ids.reception, full_name: "Local Reception", email: "reception@local.test", role: "reception", is_active: true, permissions: {}, payroll_type: "monthly_salary", monthly_salary: 9000, monthly_wage: 0, hourly_rate: 0, created_at: now },
-    { id: ids.sales, full_name: "Local Sales", email: "sales@local.test", role: "sales", is_active: true, permissions: { assigned_files: [ids.file] }, payroll_type: "hourly", monthly_salary: 0, monthly_wage: 0, hourly_rate: 120, created_at: now },
-    { id: ids.teacherUser, full_name: "Local Teacher", email: "teacher@local.test", role: "teacher", is_active: true, permissions: {}, payroll_type: "monthly_salary", monthly_salary: 0, monthly_wage: 0, hourly_rate: 0, created_at: now },
+    { id: ids.admin, full_name: "Local Admin", email: "admin@local.test", role: "admin", is_active: true, permissions: {}, payroll_type: "monthly_salary", monthly_salary: 18000, monthly_wage: 0, hourly_rate: 0, password_hash: "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9", created_at: now },
+    { id: ids.reception, full_name: "Local Reception", email: "reception@local.test", role: "reception", is_active: true, permissions: {}, payroll_type: "monthly_salary", monthly_salary: 9000, monthly_wage: 0, hourly_rate: 0, password_hash: "5145dba3b6bda2d610d2c5c435a1c2481eefd3146b6a7e004ad73f794386e031", created_at: now },
+    { id: ids.sales, full_name: "Ahmed Sales", email: "sales@local.test", role: "sales", is_active: true, permissions: { assigned_files: [ids.file] }, payroll_type: "hourly", monthly_salary: 0, monthly_wage: 0, hourly_rate: 120, password_hash: "6bc0a63cb29c92306020c0a6bbc358cc4628db277dc06e253535e126517ad637", created_at: now },
+    { id: "local-sales-2", full_name: "Mona Sales", email: "sales2@local.test", role: "sales", is_active: true, permissions: { assigned_files: [ids.file] }, payroll_type: "hourly", monthly_salary: 0, monthly_wage: 0, hourly_rate: 130, password_hash: "6bc0a63cb29c92306020c0a6bbc358cc4628db277dc06e253535e126517ad637", created_at: now },
+    { id: ids.teacherUser, full_name: "Local Teacher", email: "teacher@local.test", role: "teacher", is_active: true, permissions: {}, payroll_type: "monthly_salary", monthly_salary: 0, monthly_wage: 0, hourly_rate: 0, password_hash: "cde383eee8ee7a4400adf7a15f716f179a2eb97646b37e089eb8d6d04e663416", created_at: now },
   ],
   teachers: [
     { id: ids.teacher, user_id: ids.teacherUser, name: "Herr Müller", phone: "01000000001", pay_type: "hourly", base_rate: 250, created_at: now },
@@ -95,10 +96,25 @@ const db: Record<string, Row[]> = {
     full_name: `Lead ${index + 1}`,
     phone: `0102000000${index}`,
     source: "Local Facebook Campaign",
+    tags: index % 2 === 0 ? ["Facebook", "A1 campaign"] : ["WhatsApp", "B1 campaign"],
     file_id: ids.file,
-    status: index === 0 ? "booked" : "new",
+    status: index === 0 ? "booked" : index === 1 || index === 2 ? "waiting" : "new",
     assigned_to: ids.sales,
     converted_to_student_id: null,
+    crm_data: {
+      level: index % 2 === 0 ? "A1" : "B1",
+      first_date: index === 0 ? today : "",
+      contact_1: index === 0 ? "Asked about course schedule" : "",
+      second_date: "",
+      contact_2: "",
+      third_date: "",
+      comment_hossam: "",
+      fourth_date: "",
+      comment_kayther: "",
+      next_follow_up: "",
+      reminder_date: index === 1 ? new Date(Date.now() + 86400000).toISOString().slice(0, 10) : index === 2 ? today : "",
+      reminder_note: index === 1 ? "Waiting for the B1 evening start date." : index === 2 ? "Waiting for the requested teacher to be confirmed." : "",
+    },
     created_at: now,
   })),
   lead_interactions: [
@@ -345,8 +361,8 @@ export function createLocalSupabaseClient() {
   };
 }
 
-export function localProfile(role: Role = "admin"): UserProfile {
-  const byRole = db.users.find((user) => user.role === role) ?? db.users[0];
+export function localProfile(role: Role = "admin", userId?: string): UserProfile {
+  const byRole = db.users.find((user) => user.id === userId && user.role === role) ?? db.users.find((user) => user.role === role) ?? db.users[0];
   return clone(byRole as UserProfile);
 }
 

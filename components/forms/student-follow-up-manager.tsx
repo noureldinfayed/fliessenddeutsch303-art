@@ -450,9 +450,9 @@ export function StudentFollowUpManager({
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
                       {canEdit && <Button size="sm" variant="outline" onClick={() => startEdit(student)}><Edit2 size={16} /> {labels.edit}</Button>}
-                      {isTeacherMode ? (
+                      {isTeacherMode && teacherId ? (
                         <Button size="sm" variant="outline" onClick={() => startComment(student)}><MessageSquarePlus size={16} /> {labels.comment}</Button>
-                      ) : (
+                      ) : isTeacherMode ? null : (
                         <Button asChild size="sm" variant="outline"><Link href={`${profileBasePath}/${student.id}`}><Printer size={16} /> {labels.print}</Link></Button>
                       )}
                     </div>

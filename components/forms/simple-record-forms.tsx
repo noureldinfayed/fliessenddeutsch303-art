@@ -65,17 +65,19 @@ export function ClassForm({ teachers }: { teachers: Option[] }) {
 
 export function TreasuryForm() {
   const [saved, setSaved] = useState("");
+  const [error, setError] = useState(false);
   async function submit(form: FormData) {
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.from("treasury_records").insert({ type: form.get("type"), amount: Number(form.get("amount")), category: form.get("category"), description: form.get("description"), date: form.get("date") });
-    setSaved(error?.message ?? "Record saved");
+    setError(Boolean(error));
+    setSaved(error?.message ?? "Record saved successfully");
   }
   return (
     <Card><CardHeader><CardTitle>Add Income or Expense</CardTitle></CardHeader><CardContent>
       <form action={submit} className="grid gap-3 md:grid-cols-5">
         <Select name="type" defaultValue="income"><option value="income">Income</option><option value="expense">Expense</option></Select><Input name="amount" type="number" step="0.01" required placeholder="Amount" />
         <Input name="category" required placeholder="Category" /><Input name="date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
-        <Input name="description" placeholder="Description" /><Button className="md:col-span-5">Save Record</Button>{saved && <p className="text-sm text-muted-foreground">{saved}</p>}
+        <Input name="description" placeholder="Description" /><Button className="md:col-span-5">Save Record</Button>{saved && <p role="status" className={`text-sm md:col-span-5 ${error ? "text-red-700" : "text-green-700"}`}>{saved}</p>}
       </form>
     </CardContent></Card>
   );

@@ -9,6 +9,7 @@ import { LanguageToggle } from "@/components/layout/language-toggle";
 import { Logo } from "@/components/layout/logo";
 import { dictionaries, type Lang } from "@/lib/i18n";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { hasSupabaseEnv } from "@/lib/env";
 
 const roleHome = { admin: "/admin/dashboard", reception: "/reception/attendance/students", sales: "/sales/leads", teacher: "/teacher/attendance" } as const;
 
@@ -30,6 +31,17 @@ function LoginForm() {
     event.preventDefault();
     setLoading(true);
     setError("");
+    if (!hasSupabaseEnv()) {
+      const response = await fetch("/api/local-login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, password }) });
+      const result = await response.json();
+      if (!response.ok) {
+        setError(result.error ?? t.loginFailed);
+        setLoading(false);
+        return;
+      }
+      router.replace(roleHome[result.role as keyof typeof roleHome]);
+      return;
+    }
     const supabase = createSupabaseBrowserClient();
     const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
     if (signInError || !data.user) {

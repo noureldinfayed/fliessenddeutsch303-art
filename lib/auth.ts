@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import type { User } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabaseEnv } from "@/lib/env";
@@ -21,7 +22,10 @@ type AuthContext = {
 export async function getCurrentUser(requiredRole?: Role | Role[]): Promise<AuthContext> {
   if (!hasSupabaseEnv()) {
     const fallbackRole = (Array.isArray(requiredRole) ? requiredRole[0] : requiredRole) ?? "admin";
-    return { supabase: createLocalSupabaseClient() as unknown as AuthContext["supabase"], user: localUser, profile: localProfile(fallbackRole) };
+    const cookieStore = await cookies();
+    const role = (cookieStore.get("fd_local_role")?.value as Role | undefined) ?? fallbackRole;
+    const profile = localProfile(role, cookieStore.get("fd_local_user_id")?.value);
+    return { supabase: createLocalSupabaseClient() as unknown as AuthContext["supabase"], user: { id: profile.id, email: profile.email ?? localUser.email }, profile };
   }
   const supabase = await createSupabaseServerClient();
   const { data: auth } = await supabase.auth.getUser();

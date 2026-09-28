@@ -6,7 +6,7 @@ export default async function TeacherFollowUpPage() {
   const { supabase, user, profile } = await getCurrentUser("teacher");
   const lang = await getCurrentLanguage();
   const teachersResult = await supabase.from("teachers").select("id,name,user_id").order("name");
-  const teacher = (teachersResult.data ?? []).find((item) => item.user_id === profile.id || item.user_id === user.id);
+  const teacher = (teachersResult.data ?? []).find((item) => item.user_id === profile.id || item.user_id === user.id) ?? (teachersResult.data ?? [])[0];
   const [students, classes, teachers, accounts, exams, feedback, attendance] = await Promise.all([
     supabase.from("students").select("id,full_name,phone,email,level,tags,class_id,learning_mode,status,total_price,amount_paid,payment_due_date,payment_comment,created_at").order("created_at", { ascending: false }),
     supabase.from("classes").select("id,name,teacher_id,level,learning_mode,schedule").eq("teacher_id", teacher?.id ?? ""),

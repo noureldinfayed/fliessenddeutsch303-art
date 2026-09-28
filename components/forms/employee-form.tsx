@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Copy, KeyRound, UserPlus } from "lucide-react";
+import { AtSign, Copy, KeyRound, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -40,6 +40,10 @@ export function EmployeeForm({ leadFiles, employees }: { leadFiles: LeadFile[]; 
   const isEdit = Boolean(selected);
 
   const title = useMemo(() => (isEdit ? "Edit Employee" : "Create Employee"), [isEdit]);
+  function generateAcademyEmail() {
+    const localPart = fullName.trim().toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/^\.|\.$/g, "") || "employee";
+    setEmail(`${localPart}@fliessend-deutsch.local`);
+  }
   function load(employee: Employee) {
     setSelected(employee);
     setFullName(employee.full_name);
@@ -95,7 +99,7 @@ export function EmployeeForm({ leadFiles, employees }: { leadFiles: LeadFile[]; 
         <CardContent>
           <form className="space-y-4" onSubmit={submit}>
             <Input required placeholder="Full name" value={fullName} onChange={(event) => setFullName(event.target.value)} />
-            <Input required type="email" placeholder="Email address" value={email} onChange={(event) => setEmail(event.target.value)} disabled={isEdit} />
+            <div className="flex gap-2"><Input className="min-w-0 flex-1" required type="email" placeholder="Academy email address" value={email} onChange={(event) => setEmail(event.target.value)} disabled={isEdit} />{!isEdit && <Button type="button" variant="outline" title="Generate academy email" onClick={generateAcademyEmail}><AtSign size={16} /> Generate</Button>}</div>
             <Select value={role} onChange={(event) => { setRole(event.target.value as Role); setSalesAccess(false); setAssignedFiles([]); }}>
               <option value="reception">Reception</option><option value="sales">Sales</option><option value="teacher">Teacher</option><option value="admin">Admin</option>
             </Select>
